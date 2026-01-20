@@ -1,0 +1,36 @@
+@import "./variables.scss";
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: white;
+  -webkit-font-smoothing: antialiased;
+  background-color: $bg-color;
+}
+
+.layout-default {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout-content {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Các class Layout dùng chung */
+.login-page {
+  height: 100%;
+}
+
+.market-page {
+  height: 100%;
+}

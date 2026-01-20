@@ -1,0 +1,11 @@
+{
+  "login": {
+    "title": "System Login",
+    "username_label": "Username",
+    "username_placeholder": "Enter username",
+    "password_label": "Password",
+    "password_placeholder": "Enter password",
+    "submit": "Login",
+    "logout": "Logout"
+  }
+}

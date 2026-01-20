@@ -1,0 +1,11 @@
+{
+  "login": {
+    "title": "Đăng nhập Hệ thống",
+    "username_label": "Tên đăng nhập",
+    "username_placeholder": "Nhập tên đăng nhập",
+    "password_label": "Mật khẩu",
+    "password_placeholder": "Nhập mật khẩu",
+    "submit": "Đăng nhập",
+    "logout": "Thoát"
+  }
+}

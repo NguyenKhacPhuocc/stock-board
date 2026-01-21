@@ -1,62 +1,46 @@
 import { useIntl } from 'react-intl';
-import { useNavigate } from 'react-router-dom';
-import { useState, type FormEvent } from 'react';
-import { useAppDispatch } from '@/app/hooks';
-import { setLogin } from '../authSlice';
+import { Form, useActionData, useNavigation } from 'react-router-dom';
 import styles from './LoginForm.module.scss';
 
 export default function LoginForm() {
   const intl = useIntl();
-  const navigate = useNavigate();
-  const dispatch = useAppDispatch();
-
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-
-    // Giả lập login thành công
-    if (username.trim() && password.trim()) {
-      dispatch(setLogin({
-        username: username,
-        id: 'user-123'
-      }));
-
-      // Chuyển hướng tới trang market
-      navigate('/market');
-    } else {
-      alert('Vui lòng nhập đầy đủ thông tin (Simulation)');
-    }
-  };
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === 'submitting';
+  const actionData = useActionData() as { error?: string };
 
   return (
-    <form className={styles.loginForm} onSubmit={handleSubmit}>
+    <Form method="post" className={styles.loginForm}>
       <h2>{intl.formatMessage({ id: 'login.title' })}</h2>
 
       <div className={styles.field}>
-        <label>{intl.formatMessage({ id: 'login.username_label' })}</label>
+        <label>{intl.formatMessage({ id: 'login.email_label' })}</label>
         <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder={intl.formatMessage({ id: 'login.username_placeholder' })}
+          name="email"
+          type="email"
+          placeholder={intl.formatMessage({ id: 'login.email_placeholder' })}
+          disabled={isSubmitting}
         />
       </div>
 
       <div className={styles.field}>
         <label>{intl.formatMessage({ id: 'login.password_label' })}</label>
         <input
+          name="password"
           type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
           placeholder={intl.formatMessage({ id: 'login.password_placeholder' })}
+          disabled={isSubmitting}
         />
       </div>
 
-      <button type="submit" className={styles.submitBtn}>
-        {intl.formatMessage({ id: 'login.submit' })}
+      {actionData?.error && (
+        <div className={styles.error}>
+          Thông tin đăng nhập không chính xác
+        </div>
+      )}
+
+      <button type="submit" className={styles.submitBtn} disabled={isSubmitting}>
+        {isSubmitting ? 'Logging in...' : intl.formatMessage({ id: 'login.submit' })}
       </button>
-    </form>
+    </Form>
   );
 }

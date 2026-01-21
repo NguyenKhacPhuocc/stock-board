@@ -1,8 +1,8 @@
 {
   "login": {
     "title": "Đăng nhập Hệ thống",
-    "username_label": "Tên đăng nhập",
-    "username_placeholder": "Nhập tên đăng nhập",
+    "email_label": "Email",
+    "email_placeholder": "Nhập email",
     "password_label": "Mật khẩu",
     "password_placeholder": "Nhập mật khẩu",
     "submit": "Đăng nhập",

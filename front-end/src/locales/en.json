@@ -1,8 +1,8 @@
 {
   "login": {
     "title": "System Login",
-    "username_label": "Username",
-    "username_placeholder": "Enter username",
+    "email_label": "Email",
+    "email_placeholder": "Enter email",
     "password_label": "Password",
     "password_placeholder": "Enter password",
     "submit": "Login",

@@ -3,6 +3,8 @@ import LoginPage from '@/pages/login/LoginPage';
 import MarketPage from '@/pages/market/MarketPage';
 import LayoutDefault from '@/components/layout/LayoutDefault';
 
+import { loginAction } from '@/features/auth/authAction';
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -15,10 +17,12 @@ export const router = createBrowserRouter([
       {
         path: 'market',
         element: <MarketPage />,
+        // loader: marketLoader,  // in react router v7, we use loader
       },
       {
         path: 'login',
         element: <LoginPage />,
+        action: loginAction,
       },
       {
         path: '*',

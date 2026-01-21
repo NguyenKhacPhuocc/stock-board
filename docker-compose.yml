@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  backend:
+    container_name: stock_backend
+    build: 
+      context: ./back-end
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./back-end/.env
+    environment:
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET:-dev_secret_key}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
+    restart: unless-stopped
+    networks:
+      - stock-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    container_name: stock_frontend
+    build: 
+      context: ./front-end
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - stock-network
+
+networks:
+  stock-network:
+    driver: bridge

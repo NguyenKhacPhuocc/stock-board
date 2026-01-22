@@ -1,24 +1,12 @@
-import styles from "@/features/market/components/MarketBoard/MarketBoard.module.scss";
 import MarketIndexCard from "./MarketIndexCard";
+import { MOCK_MARKET_INDICES } from "@/features/market/mockMarketData";
 
 export default function MarketOverview() {
-    return (
-        <>
-            <div className={styles.marketIndex}>
-                <MarketIndexCard />
-            </div>
-            <div className={styles.marketIndex}>
-                <MarketIndexCard />
-            </div>
-            <div className={styles.marketIndex}>
-                <MarketIndexCard />
-            </div>
-            <div className={styles.marketIndex}>
-                <MarketIndexCard />
-            </div>
-            <div className={styles.marketIndex}>
-                <MarketIndexCard />
-            </div>
-        </>
-    );
+  return (
+    <>
+      {MOCK_MARKET_INDICES.map(index => (
+        <MarketIndexCard key={index.id} indexData={index} />
+      ))}
+    </>
+  );
 }

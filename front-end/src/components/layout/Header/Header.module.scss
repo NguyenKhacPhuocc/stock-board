@@ -1,13 +1,11 @@
-@import "@/styles/variables.scss";
+@use "@/styles/variables.scss" as *;
 
 .header {
-  height: 64px;
-  background-color: $bg-secondary;
-  border-bottom: 1px solid $border-color;
+  background-color: $bg-color;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: 8px 24px;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -19,7 +17,7 @@
       color: $primary-action;
       text-decoration: none;
       letter-spacing: -0.5px;
-      
+
       span {
         color: $text-primary;
       }
@@ -92,14 +90,14 @@
         color: white;
       }
     }
-    
+
     .userProfile {
       display: flex;
       align-items: center;
       gap: 8px;
       color: $text-primary;
       font-size: 14px;
-      
+
       .avatar {
         width: 32px;
         height: 32px;

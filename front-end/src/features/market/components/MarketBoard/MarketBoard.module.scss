@@ -1,0 +1,31 @@
+@use "@/styles/variables.scss" as *;
+
+.marketBoard {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    flex: 1;
+
+    .marketBoardOverview {
+        flex: 2;
+        background-color: $bg-color;
+        border-radius: 8px;
+        padding: 4px;
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 4px;
+
+        .marketIndex {
+            background-color: #000;
+            border-radius: 4px;
+        }
+    }
+
+    .marketBoardTable {
+        flex: 7;
+        background-color: $bg-color;
+        border-radius: 8px 8px 0 0;
+        padding: 4px;
+    }
+}

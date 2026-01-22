@@ -1,13 +1,14 @@
-import MarketHeader from './MarketHeader';
+import styles from "@/features/market/components/MarketBoard/MarketBoard.module.scss";
+import MarketOverview from "./MarketOverview";
 
 export default function MarketBoard() {
   return (
-    <div className="market-board">
-      <h2>Bảng giá chứng khoán</h2>
-      <MarketHeader />
-      {/* Table content goes here */}
-      <div className="market-table-content">
-        Dữ liệu bảng giá sẽ hiển thị ở đây
+    <div className={styles.marketBoard}>
+      <div className={styles.marketBoardOverview}>
+        <MarketOverview />
+      </div>
+      <div className={styles.marketBoardTable}>
+        a
       </div>
     </div>
   );

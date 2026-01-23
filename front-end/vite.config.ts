@@ -16,6 +16,13 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    strictPort: true
+    strictPort: true,
+    proxy: {
+      '/api-bsc': {
+        target: 'https://priceapi.bsc.com.vn',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api-bsc/, '')
+      }
+    }
   }
 })

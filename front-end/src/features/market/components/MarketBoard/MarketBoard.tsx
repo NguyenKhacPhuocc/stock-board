@@ -1,5 +1,7 @@
 import styles from "@/features/market/components/MarketBoard/MarketBoard.module.scss";
 import MarketOverview from "./MarketOverview";
+import MarketToolBar from "./MarketToolBar";
+import MarketTable from "./MarketTable";
 
 export default function MarketBoard() {
   return (
@@ -8,7 +10,8 @@ export default function MarketBoard() {
         <MarketOverview />
       </div>
       <div className={styles.marketBoardTable}>
-        a
+        <MarketToolBar />
+        <MarketTable />
       </div>
     </div>
   );

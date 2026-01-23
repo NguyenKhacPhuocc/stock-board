@@ -21,3 +21,39 @@ export interface MarketIndexData {
   }[];
   color: 'up' | 'down' | 'ref';
 }
+
+export interface StockInstrument {
+  symbol: string;
+  reference: number;
+  ceiling: number;
+  floor: number;
+  bidPrice1?: number;
+  bidVol1?: number;
+  bidPrice2?: number;
+  bidVol2?: number;
+  bidPrice3?: number;
+  bidVol3?: number;
+  offerPrice1?: number;
+  offerVol1?: number;
+  offerPrice2?: number;
+  offerVol2?: number;
+  offerPrice3?: number;
+  offerVol3?: number;
+  closePrice?: number;
+  closeVol?: number;
+  change?: number;
+  ratioChange?: number;
+  high?: number;
+  low?: number;
+  averagePrice?: number;
+  totalTradedQtty?: number;
+  buyForeignVol?: number;
+  sellForeignVol?: number;
+  [key: string]: any;
+}
+
+export interface MarketState {
+  stocks: StockInstrument[];
+  loading: boolean;
+  error: string | null;
+}

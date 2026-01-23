@@ -1,3 +1,4 @@
+@use "sass:color";
 @use "@/styles/variables.scss" as *;
 
 .marketBoard {
@@ -5,17 +6,30 @@
     flex-direction: column;
     gap: 4px;
     width: 100%;
+    height: 100%;
     flex: 1;
     background-color: #000;
+    overflow: hidden;
 
     .marketBoardOverview {
         background-color: $bg-color;
-        border-radius: 8px;
+        border-radius: 4px;
         padding: 4px;
         display: grid;
         grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: 4px;
         width: 100%;
+        flex: none;
+    }
+
+    .loading {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: $text-secondary;
+        font-size: 14px;
+        background-color: $bg-color;
     }
 
     .card {
@@ -31,7 +45,7 @@
         .chartContainer {
             height: 100px;
             position: relative;
-            
+
             .chartHeader {
                 position: absolute;
                 top: 4px;
@@ -39,7 +53,7 @@
                 display: flex;
                 gap: 4px;
                 z-index: 10;
-                
+
                 button {
                     background: rgba(255, 255, 255, 0.1);
                     border: none;
@@ -50,7 +64,7 @@
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    
+
                     &:hover {
                         background: rgba(255, 255, 255, 0.2);
                     }
@@ -69,7 +83,7 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: baseline;
-                
+
                 .indexName {
                     font-weight: bold;
                     color: #aaa;
@@ -86,7 +100,7 @@
                 display: flex;
                 justify-content: space-between;
                 margin-top: 1px;
-                
+
                 span {
                     white-space: nowrap;
                 }
@@ -105,7 +119,7 @@
                 gap: 6px;
                 margin-top: 2px;
                 font-weight: 500;
-                
+
                 .countItem {
                     display: flex;
                     align-items: center;
@@ -116,40 +130,271 @@
 
         // Color modifiers
         &.up {
-            .indexValue, .changeText { color: #00ff00; }
+
+            .indexValue,
+            .changeText {
+                color: #00ff00;
+            }
         }
+
         &.down {
-            .indexValue, .changeText { color: #ff3b3b; }
+
+            .indexValue,
+            .changeText {
+                color: #ff3b3b;
+            }
         }
+
         &.ref {
-            .indexValue, .changeText { color: #ffd700; }
+
+            .indexValue,
+            .changeText {
+                color: #ffd700;
+            }
         }
     }
 
     .marketBoardTable {
-        flex: 8;
+        flex: 1;
+        min-height: 0;
         background-color: $bg-color;
-        border-radius: 8px 8px 0 0;
-        padding: 4px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border-radius: 4px;
     }
 }
 
-// Icons/Colors helper
-.colorUp { color: #00ff00; }
-.colorCeiling { color: #ff00ff; }
-.colorRef { color: #ffd700; }
-.colorDown { color: #ff3b3b; }
-.colorFloor { color: #00ffff; }
- 
+.marketToolBar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: $bg-color;
+    padding: 2px 4px;
+    gap: 8px;
+    border-bottom: 1px solid $border-color;
+    font-size: 13px;
+
+    .toolBarLeft,
+    .toolBarRight {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .searchBox {
+        display: flex;
+        align-items: center;
+        background: $input-bg;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid $border-color;
+        gap: 6px;
+
+        input {
+            background: transparent;
+            border: none;
+            color: $text-primary;
+            outline: none;
+            width: 80px;
+            font-size: 12px;
+        }
+    }
+
+    .dropdownBtn {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: $input-bg;
+        padding: 4px 10px;
+        border-radius: 4px;
+        border: 1px solid $border-color;
+        color: $text-secondary;
+        cursor: pointer;
+        white-space: nowrap;
+
+        &:hover {
+            color: $text-primary;
+            background: color.adjust($input-bg, $lightness: 5%);
+        }
+    }
+
+    .marketTabs {
+        display: flex;
+        gap: 2px;
+        background: $input-bg;
+        border-radius: 4px;
+        padding: 2px;
+
+        .tab {
+            padding: 4px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            color: $text-secondary;
+            font-weight: 500;
+
+            &.active {
+                background: color.adjust($input-bg, $lightness: 10%);
+                color: $text-primary;
+                border: 1px solid #e31e24; // Keeping the characteristic red accent for active tab
+            }
+
+            &:hover:not(.active) {
+                background: color.adjust($input-bg, $lightness: 5%);
+            }
+        }
+    }
+
+    .secondaryTabs {
+        background: transparent;
+
+        .tab {
+            background: $input-bg;
+            border: 1px solid $border-color;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+    }
+
+    .iconBtn {
+        padding: 6px;
+        color: $text-secondary;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+
+        &:hover {
+            color: $text-primary;
+        }
+    }
+}
+
+.tableWrapper {
+    width: 100%;
+    overflow: auto;
+    flex: 1;
+    min-height: 0;
+
+    table {
+        width: 100%;
+        border-collapse: separate; // Fix for sticky borders
+        border-spacing: 0;
+        font-family: 'Roboto', sans-serif;
+        font-size: 11px;
+        color: $text-primary;
+        table-layout: fixed;
+
+        thead {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+
+            th {
+                border-right: 1px solid $border-color;
+                border-bottom: 1px solid $border-color;
+                padding: 4px 2px;
+                background: $bg-secondary;
+                font-weight: normal;
+                text-align: center;
+                white-space: nowrap;
+                color: $text-secondary;
+
+                // Fix for border disappearing on sticky headers
+                background-clip: padding-box;
+            }
+
+            .subHeader {
+                font-size: 10px;
+            }
+        }
+
+        tbody {
+            tr {
+                &:hover {
+                    background: color.adjust($bg-primary, $lightness: 5%);
+                }
+
+                &.rowActive {
+                    background-color: rgba($text-primary, 0.05);
+                }
+
+                td {
+                    border-right: 1px solid color.adjust($border-color, $lightness: -5%);
+                    border-bottom: 1px solid color.adjust($border-color, $lightness: -5%);
+                    padding: 4px 4px;
+                    text-align: right;
+                    font-weight: 500;
+
+                    &:first-child {
+                        text-align: left;
+                        position: sticky;
+                        left: 0;
+                        background: $bg-primary;
+                        z-index: 10;
+                        display: flex;
+                        align-items: center;
+                        gap: 4px;
+                        border-right: 1px solid $border-color;
+                    }
+
+                    &.colCenter {
+                        text-align: center;
+                    }
+                }
+            }
+        }
+    }
+}
+
+.pinIcon {
+    color: $text-secondary;
+    cursor: pointer;
+
+    &:hover {
+        color: $text-primary;
+    }
+}
+
+.dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 2px;
+}
+
+// Icons/Colors helper using standard palette
+.colorUp {
+    color: $color-up;
+}
+
+.colorCeiling {
+    color: $color-ceil;
+}
+
+.colorRef {
+    color: $color-ref;
+}
+
+.colorDown {
+    color: $color-down;
+}
+
+.colorFloor {
+    color: $color-floor;
+}
+
 .tooltip {
     color: #000 !important;
     font-family: 'Roboto', sans-serif;
-    
-    // Apexcharts internal classes
+
     :global {
         .apexcharts-tooltip-title {
             color: #000 !important;
         }
+
         .apexcharts-tooltip-text {
             color: #000 !important;
         }

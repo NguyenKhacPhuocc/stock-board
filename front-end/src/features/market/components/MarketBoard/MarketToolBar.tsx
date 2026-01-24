@@ -1,57 +1,76 @@
-import { ChevronDown, Search, Settings } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, Settings, Video } from "lucide-react";
+import { useAppDispatch, useAppSelector } from "@/app/hooks";
+import { fetchInstruments, setSelectedExchange, setSelectedType } from "../../marketSlice";
+import { selectSelectedExchange, selectSelectedType } from "../../marketSelectors";
+import type { MarketSymbolType } from "../../marketTypes";
 import styles from "./MarketBoard.module.scss";
 
 export default function MarketToolBar() {
-    return (
-        <div className={styles.marketToolBar}>
-            <div className={styles.toolBarLeft}>
-                <div className={styles.searchBox}>
-                    <Search />
-                    <input type="text" placeholder="Add symbol" />
-                </div>
+  const dispatch = useAppDispatch();
+  const selectedExchange = useAppSelector(selectSelectedExchange);
+  const selectedType = useAppSelector(selectSelectedType);
 
-                <div className={styles.dropdownBtn}>
-                    Watchlist <ChevronDown />
-                </div>
+  const handleExchangeClick = (exchange: string) => {
+    dispatch(setSelectedExchange(exchange));
+    dispatch(setSelectedType('STOCK')); // Khi chọn sàn thì mặc định hiện cổ phiếu
+    dispatch(fetchInstruments(exchange));
+  };
 
-                <div className={styles.marketTabs}>
-                    <div className={`${styles.tab} ${styles.active}`}>HOSE</div>
-                    <div className={styles.tab}>HNX</div>
-                    <div className={styles.tab}>UPCOM</div>
-                </div>
+  const handleTypeClick = (type: MarketSymbolType) => {
+    dispatch(setSelectedType(type));
+  };
 
-                <div className={styles.dropdownBtn}>
-                    Sectors <ChevronDown />
-                </div>
-
-                <div className={`${styles.marketTabs} ${styles.secondaryTabs}`}>
-                    <div className={styles.tab}>Warrants</div>
-                    <div className={styles.tab}>Bonds</div>
-                    <div className={styles.tab}>ETF</div>
-                    <div className={styles.tab}>TPRL</div>
-                    <div className={styles.tab}>Odd lot <ChevronDown /></div>
-                </div>
-            </div>
-
-            <div className={styles.toolBarRight}>
-                <div className={styles.dropdownBtn}>
-                    Analysis Tools <ChevronDown />
-                </div>
-                <div className={styles.dropdownBtn}>
-                    Buy In <ChevronDown />
-                </div>
-                <div className={styles.iconBtn}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" />
-                    </svg>
-                </div>
-                <div className={styles.iconBtn}><Settings /></div>
-                <div className={styles.iconBtn}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m18 15-6-6-6 6" />
-                    </svg>
-                </div>
-            </div>
+  return (
+    <div className={styles.marketToolBar}>
+      <div className={styles.toolBarLeft}>
+        <div className={styles.searchBox}>
+          <Search className={styles.icon} />
+          <input type="text" placeholder="Tìm mã CK" />
         </div>
-    );
+
+        <div className={styles.dropdownBtn}>
+          Danh sách theo dõi <ChevronDown className={styles.icon} />
+        </div>
+
+        <div className={styles.marketTabs}>
+          {['HOSE', 'HNX', 'UPCOM'].map((ex) => (
+            <div
+              key={ex}
+              className={`${styles.tab} ${selectedExchange === ex && (selectedType === 'STOCK' || selectedType === 'ALL') ? styles.active : ""}`}
+              onClick={() => handleExchangeClick(ex)}
+            >
+              {ex}
+            </div>
+          ))}
+        </div>
+
+        <div className={`${styles.marketTabs} ${styles.secondaryTabs}`}>
+          <div
+            className={`${styles.tab} ${selectedType === 'WARRANT' ? styles.active : ""}`}
+            onClick={() => handleTypeClick('WARRANT')}
+          >
+            Chứng quyền
+          </div>
+          <div
+            className={`${styles.tab} ${selectedType === 'ETF' ? styles.active : ""}`}
+            onClick={() => handleTypeClick('ETF')}
+          >
+            ETF
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.toolBarRight}>
+        {/* <div className={styles.dropdownBtn}>
+          Analysis Tools <ChevronDown className={styles.icon} />
+        </div> */}
+        <div className={styles.dropdownBtn}>
+          Buy In <ChevronDown className={styles.icon} />
+        </div>
+        <div className={styles.iconBtn} title="Chế độ trình chiếu"><Video className={styles.icon} /></div>
+        <div className={styles.iconBtn} title="Cài đặt"><Settings className={styles.icon} /></div>
+        <div className={styles.iconBtn} title="Thu gọn"><ChevronUp className={styles.icon} /></div>
+      </div>
+    </div>
+  );
 }

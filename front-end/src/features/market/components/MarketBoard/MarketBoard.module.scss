@@ -365,6 +365,18 @@
     margin-left: 2px;
 }
 
+.icon{
+    width: 16px;
+    height: 16px;
+}
+
+.iconPin{
+    width: 16px;
+    height: 16px;
+    color: $text-secondary;
+    margin-right: 4px;
+}
+
 // Icons/Colors helper using standard palette
 .colorUp {
     color: $color-up;

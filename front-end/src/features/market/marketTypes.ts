@@ -52,8 +52,12 @@ export interface StockInstrument {
   [key: string]: any;
 }
 
+export type MarketSymbolType = 'STOCK' | 'WARRANT' | 'ETF' | 'ALL';
+
 export interface MarketState {
   stocks: StockInstrument[];
   loading: boolean;
   error: string | null;
+  selectedExchange: string;
+  selectedType: MarketSymbolType;
 }

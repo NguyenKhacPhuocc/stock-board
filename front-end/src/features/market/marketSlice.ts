@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import { marketService } from './marketService';
-import type { MarketState, StockInstrument } from './marketTypes';
+import type { MarketState, StockInstrument, MarketSymbolType } from './marketTypes';
 
 export const fetchInstruments = createAsyncThunk(
   'market/fetchInstruments',
@@ -13,6 +13,8 @@ const initialState: MarketState = {
   stocks: [],
   loading: false,
   error: null,
+  selectedExchange: 'HOSE',
+  selectedType: 'STOCK',
 };
 
 const marketSlice = createSlice({
@@ -21,6 +23,12 @@ const marketSlice = createSlice({
   reducers: {
     setStocks: (state, action: PayloadAction<StockInstrument[]>) => {
       state.stocks = action.payload;
+    },
+    setSelectedExchange: (state, action: PayloadAction<string>) => {
+      state.selectedExchange = action.payload;
+    },
+    setSelectedType: (state, action: PayloadAction<MarketSymbolType>) => {
+      state.selectedType = action.payload;
     },
     clearError: (state) => {
       state.error = null;
@@ -36,7 +44,6 @@ const marketSlice = createSlice({
         state.loading = false;
         const payload = action.payload;
 
-        // Robust check for BSC API structure { s: 'ok', d: [...] }
         if (payload?.s === 'ok' && Array.isArray(payload.d)) {
           state.stocks = payload.d;
         } else if (Array.isArray(payload)) {
@@ -52,5 +59,5 @@ const marketSlice = createSlice({
   },
 });
 
-export const { setStocks, clearError } = marketSlice.actions;
+export const { setStocks, clearError, setSelectedExchange, setSelectedType } = marketSlice.actions;
 export default marketSlice.reducer;

@@ -6,36 +6,61 @@ export const selectMarketLoading = (state: RootState) => state.market.loading;
 export const selectMarketError = (state: RootState) => state.market.error;
 export const selectSelectedExchange = (state: RootState) => state.market.selectedExchange;
 export const selectSelectedType = (state: RootState) => state.market.selectedType;
+export const selectAllStocks = (state: RootState) => state.market.allStocks;
+export const selectHighlightedSymbol = (state: RootState) => state.market.highlightedSymbol;
+export const selectPinnedSymbols = (state: RootState) => state.market.pinnedSymbols;
 
 export const selectFilteredStocks = createSelector(
-  [selectMarketStocks, selectSelectedType],
+  [selectMarketStocks, selectSelectedType, selectPinnedSymbols],
   (stocks, selectedType) => {
-    if (selectedType === 'ALL') return stocks;
+    let filtered = stocks;
+    if (selectedType !== 'ALL') {
+      filtered = stocks.filter(stock => {
+        const type = stock.StockType;
+        const symbol = stock.symbol || "";
 
-    return stocks.filter(stock => {
-      const type = stock.StockType;
-      const symbol = stock.symbol || "";
-
-      if (selectedType === 'STOCK') {
-        // Common stock is Type 2. Warrants are Type 4. 
-        // We also check length to be sure (Stocks = 3, Warrants = 8, ETF = 8)
-        if (type === '4') return false; // Definitely warrant
-        if (symbol.length > 3) {
-          // Check if it's ETF (starts with E, F) or Warrant (starts with C)
-          if (symbol.startsWith('C') || symbol.startsWith('E') || symbol.startsWith('F')) return false;
+        if (selectedType === 'STOCK') {
+          return symbol.length === 3;
         }
+
+        if (selectedType === 'WARRANT') {
+          return type === '4' || symbol.startsWith('C');
+        }
+
+        if (selectedType === 'ETF') {
+          return symbol.startsWith('E') || symbol.startsWith('FU');
+        }
+
         return true;
-      }
+      });
+    }
 
-      if (selectedType === 'WARRANT') {
-        return type === '4' || symbol.startsWith('C');
-      }
+    // Return raw filtered, let sorting happen downstream or split
+    return filtered;
+  }
+);
 
-      if (selectedType === 'ETF') {
-        return symbol.startsWith('E') || symbol.startsWith('FU');
-      }
+export const selectPinnedFilteredStocks = createSelector(
+  [selectFilteredStocks, selectPinnedSymbols],
+  (stocks, pinnedSymbols) => {
+    return stocks.filter(s => pinnedSymbols.includes(s.symbol));
+  }
+);
 
-      return true;
-    });
+export const selectUnpinnedFilteredStocks = createSelector(
+  [selectFilteredStocks, selectPinnedSymbols],
+  (stocks, pinnedSymbols) => {
+    return stocks.filter(s => !pinnedSymbols.includes(s.symbol));
+  }
+);
+
+export const selectSearchSuggestions = (searchTerm: string) => createSelector(
+  [selectAllStocks],
+  (allStocks) => {
+    if (!searchTerm || searchTerm.length < 1) return [];
+    const term = searchTerm.toUpperCase();
+    return allStocks
+      .filter(stock => stock.symbol.toUpperCase().includes(term))
+      .slice(0, 10); // Limit results for performance
   }
 );

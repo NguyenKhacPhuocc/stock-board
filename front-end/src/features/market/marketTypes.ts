@@ -55,9 +55,12 @@ export interface StockInstrument {
 export type MarketSymbolType = 'STOCK' | 'WARRANT' | 'ETF' | 'ALL';
 
 export interface MarketState {
-  stocks: StockInstrument[];
+  stocks: StockInstrument[]; // Stocks for current exchange
+  allStocks: StockInstrument[]; // Global stocks for search
   loading: boolean;
   error: string | null;
   selectedExchange: string;
   selectedType: MarketSymbolType;
+  highlightedSymbol: string | null;
+  pinnedSymbols: string[];
 }

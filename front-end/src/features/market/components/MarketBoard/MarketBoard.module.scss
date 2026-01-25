@@ -190,14 +190,74 @@
         border-radius: 4px;
         border: 1px solid $border-color;
         gap: 6px;
+        position: relative; // For dropdown
 
         input {
             background: transparent;
             border: none;
             color: $text-primary;
             outline: none;
-            width: 80px;
+            width: 100px; // Slightly wider
             font-size: 12px;
+        }
+
+        .searchSuggestions {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            width: max-content;
+            min-width: 100%;
+            max-width: 500px;
+            background: #1a1a1a;
+            border: 1px solid $border-color;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+
+            .suggestionItem {
+                padding: 8px 12px;
+                display: grid;
+                grid-template-columns: auto auto 1fr;
+                gap: 8px;
+                cursor: pointer;
+                align-items: center;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                white-space: nowrap;
+
+                &:last-child {
+                    border-bottom: none;
+                }
+
+                &:hover {
+                    background: #252525;
+                }
+
+                .symbol {
+                    color: $color-up;
+                    font-weight: 600;
+                    font-size: 12px;
+                }
+
+                .exchange {
+                    color: $text-secondary;
+                    font-size: 10px;
+                    background: rgba(255, 255, 255, 0.05);
+                    padding: 1px 4px;
+                    border-radius: 2px;
+                    text-align: center;
+                    min-width: 45px;
+                }
+
+                .name {
+                    color: $text-secondary;
+                    font-size: 11px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    text-align: left;
+                }
+            }
         }
     }
 
@@ -271,131 +331,178 @@
 }
 
 .tableWrapper {
+    display: flex;
+    flex-direction: column;
     width: 100%;
-    overflow: auto;
-    flex: 1;
+    height: 100%;
     min-height: 0;
+    overflow: hidden;
 
-    table {
+    // Common TD styles mixin concept (applied manually)
+
+    .pinnedTable {
+        flex: none;
         width: 100%;
-        border-collapse: separate; // Fix for sticky borders
+        border-collapse: collapse;
         border-spacing: 0;
+        border-bottom: 2px solid #925d1c; // Orange separator
+        
+        &.emptyPinned {
+            border-bottom: none;
+        }
+
         font-family: 'Roboto', sans-serif;
         font-size: 11px;
         color: $text-primary;
         table-layout: fixed;
+        user-select: none;
 
         thead {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-
-            th {
-                border-right: 1px solid $border-color;
-                border-bottom: 1px solid $border-color;
-                padding: 4px 2px;
-                background: $bg-secondary;
-                font-weight: normal;
-                text-align: center;
-                white-space: nowrap;
-                color: $text-secondary;
-
-                // Fix for border disappearing on sticky headers
-                background-clip: padding-box;
-            }
-
-            .subHeader {
-                font-size: 10px;
-            }
+           background-color: $bg-secondary;
+           tr { height: 22px; }
+           th {
+               border-right: 1px solid $border-color;
+               border-bottom: 1px solid $border-color;
+               padding: 0 2px;
+               background-color: $bg-secondary;
+               font-weight: normal;
+               text-align: center;
+               white-space: nowrap;
+               color: $text-secondary;
+               vertical-align: middle;
+           }
+           .subHeader th { height: 22px; }
         }
 
-        tbody {
-            tr {
-                &:hover {
-                    background: color.adjust($bg-primary, $lightness: 5%);
+        tbody tr {
+            height: 26px;
+
+            &.rowHighlighted {
+                background-color: rgba(255, 215, 0, 0.2) !important;
+                transition: background-color 2s ease-out;
+                td { background-color: rgba(255, 215, 0, 0.2) !important; }
+            }
+
+            &:hover td { background: color.adjust($bg-primary, $lightness: 5%); }
+
+            td {
+                border-right: 1px solid color.adjust($border-color, $lightness: -5%);
+                border-bottom: 1px solid color.adjust($border-color, $lightness: -5%);
+                padding: 4px 4px;
+                text-align: right;
+                font-weight: 500;
+
+                &:first-child {
+                    text-align: left;
+                    border-right: 1px solid $border-color;
+                    padding-left: 8px;
+                    background-color: $bg-primary;
+                    z-index: 10;
+                    display: flex;
+                    align-items: center;
                 }
+                &.colCenter { text-align: center; }
+            }
+        }
+    }
 
-                &.rowActive {
-                    background-color: rgba($text-primary, 0.05);
+    .scrollableTableContainer {
+        flex: 1;
+        overflow-y: auto;
+        width: 100%;
+        min-height: 0;
+
+        /* Hide scrollbar */
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        &::-webkit-scrollbar {
+            display: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border-spacing: 0;
+            font-family: 'Roboto', sans-serif;
+            font-size: 11px;
+            color: $text-primary;
+            table-layout: fixed;
+            user-select: none;
+        }
+
+        tbody tr {
+            height: 26px;
+
+            &.rowHighlighted {
+                background-color: rgba(255, 215, 0, 0.2) !important;
+                transition: background-color 2s ease-out;
+                td { background-color: rgba(255, 215, 0, 0.2) !important; }
+            }
+
+            &:hover td { background: color.adjust($bg-primary, $lightness: 5%); }
+
+            td {
+                border-right: 1px solid color.adjust($border-color, $lightness: -5%);
+                border-bottom: 1px solid color.adjust($border-color, $lightness: -5%);
+                padding: 4px 4px;
+                text-align: right;
+                font-weight: 500;
+
+                &:first-child {
+                    text-align: left;
+                    border-right: 1px solid $border-color;
+                    padding-left: 8px;
+                    // Sticky left needed for horizontal scroll
+                    position: sticky;
+                    left: 0;
+                    background-color: $bg-primary;
+                    z-index: 10;
+                    display: flex;
+                    align-items: center;
                 }
-
-                td {
-                    border-right: 1px solid color.adjust($border-color, $lightness: -5%);
-                    border-bottom: 1px solid color.adjust($border-color, $lightness: -5%);
-                    padding: 4px 4px;
-                    text-align: right;
-                    font-weight: 500;
-
-                    &:first-child {
-                        text-align: left;
-                        position: sticky;
-                        left: 0;
-                        background: $bg-primary;
-                        z-index: 10;
-                        display: flex;
-                        align-items: center;
-                        gap: 4px;
-                        border-right: 1px solid $border-color;
-                    }
-
-                    &.colCenter {
-                        text-align: center;
-                    }
-                }
+                &.colCenter { text-align: center; }
             }
         }
     }
 }
+// End of tableWrapper
 
-.pinIcon {
-    color: $text-secondary;
-    cursor: pointer;
-
-    &:hover {
-        color: $text-primary;
-    }
-}
-
-.dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    display: inline-block;
-    vertical-align: middle;
-    margin-left: 2px;
-}
-
-.icon{
-    width: 16px;
-    height: 16px;
-}
-
-.iconPin{
+// Helper classes used in render
+.iconPin {
     width: 16px;
     height: 16px;
     color: $text-secondary;
     margin-right: 4px;
+    transition: transform 0.2s;
+
+    &.pinned {
+        color: $text-primary;
+        transform: rotate(45deg);
+    }
 }
 
-// Icons/Colors helper using standard palette
-.colorUp {
-    color: $color-up;
+.colorRef { color: $color-ref !important; }
+.colorCeiling { color: $color-ceil !important; }
+.colorFloor { color: $color-floor !important; }
+.colorUp { color: $color-up !important; }
+.colorDown { color: $color-down !important; }
+
+@keyframes flashUp {
+    0% { background-color: rgba(0, 255, 0, 0.5); }
+    100% { background-color: transparent; }
 }
 
-.colorCeiling {
-    color: $color-ceil;
+@keyframes flashDown {
+    0% { background-color: rgba(255, 0, 0, 0.5); }
+    100% { background-color: transparent; }
 }
 
-.colorRef {
-    color: $color-ref;
+.flashUp {
+    animation: flashUp 0.5s ease-out;
 }
 
-.colorDown {
-    color: $color-down;
-}
-
-.colorFloor {
-    color: $color-floor;
+.flashDown {
+    animation: flashDown 0.5s ease-out;
 }
 
 .tooltip {

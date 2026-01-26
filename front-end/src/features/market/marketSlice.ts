@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import { marketService } from './marketService';
 import type { MarketState, StockInstrument, MarketSymbolType } from './marketTypes';
+import { normalizeBSCData } from './marketUtils';
 
 export const fetchInstruments = createAsyncThunk(
   'market/fetchInstruments',
@@ -21,7 +22,11 @@ export const fetchAllInstruments = createAsyncThunk(
       if (result.status === 'fulfilled') {
         const res = result.value;
         const data = (res?.s === 'ok' && Array.isArray(res.d)) ? res.d : (Array.isArray(res) ? res : []);
-        return data.map((item: any) => ({ ...item, exchange: exchanges[index] }));
+        // Normalize each item to ensure it uses BSC short field names
+        return data.map((item: any) => ({
+          ...normalizeBSCData(item),
+          exchange: exchanges[index]
+        }));
       }
       return [];
     });
@@ -30,6 +35,7 @@ export const fetchAllInstruments = createAsyncThunk(
 
 const initialState: MarketState = {
   stocks: [],
+  entities: {},
   allStocks: [],
   loading: false,
   error: null,
@@ -45,6 +51,12 @@ const marketSlice = createSlice({
   reducers: {
     setStocks: (state, action: PayloadAction<StockInstrument[]>) => {
       state.stocks = action.payload;
+      // Initialize entities for fast O(1) lookups by Symbol (SB)
+      const entities: Record<string, StockInstrument> = {};
+      action.payload.forEach(stock => {
+        entities[stock.SB] = stock;
+      });
+      state.entities = entities;
     },
     setSelectedExchange: (state, action: PayloadAction<string>) => {
       state.selectedExchange = action.payload;
@@ -67,21 +79,14 @@ const marketSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
-    // Update stock data from WebSocket
-    updateStockData: (state, action: PayloadAction<{ symbol: string; data: Partial<StockInstrument> }>) => {
-      const { symbol, data } = action.payload;
-
-      // Update in stocks array
-      const stockIndex = state.stocks.findIndex(s => s.symbol === symbol);
-      if (stockIndex !== -1) {
-        state.stocks[stockIndex] = { ...state.stocks[stockIndex], ...data };
-      }
-
-      // Update in allStocks array
-      const allStockIndex = state.allStocks.findIndex(s => s.symbol === symbol);
-      if (allStockIndex !== -1) {
-        state.allStocks[allStockIndex] = { ...state.allStocks[allStockIndex], ...data };
-      }
+    // Batch update stock data from WebSocket
+    batchUpdateStocks: (state, action: PayloadAction<Partial<StockInstrument>[]>) => {
+      action.payload.forEach(update => {
+        const symbol = update.SB;
+        if (symbol && state.entities[symbol]) {
+          state.entities[symbol] = { ...state.entities[symbol], ...update };
+        }
+      });
     }
   },
   extraReducers: (builder) => {
@@ -93,14 +98,25 @@ const marketSlice = createSlice({
       .addCase(fetchInstruments.fulfilled, (state, action) => {
         state.loading = false;
         const payload = action.payload;
+        let instruments: StockInstrument[] = [];
 
         if (payload?.s === 'ok' && Array.isArray(payload.d)) {
-          state.stocks = payload.d;
+          instruments = payload.d.map(normalizeBSCData);
         } else if (Array.isArray(payload)) {
-          state.stocks = payload;
-        } else {
-          state.stocks = [];
+          instruments = payload.map(normalizeBSCData);
         }
+
+        state.stocks = instruments;
+
+        // Merge initial instruments into entities. 
+        // WS updates might have already arrived, so we merge carefully.
+        instruments.forEach(stock => {
+          if (state.entities[stock.SB]) {
+            state.entities[stock.SB] = { ...stock, ...state.entities[stock.SB] };
+          } else {
+            state.entities[stock.SB] = stock;
+          }
+        });
       })
       .addCase(fetchInstruments.rejected, (state, action) => {
         state.loading = false;
@@ -112,5 +128,14 @@ const marketSlice = createSlice({
   },
 });
 
-export const { setStocks, clearError, setSelectedExchange, setSelectedType, setHighlightedSymbol, togglePin, updateStockData } = marketSlice.actions;
+export const {
+  setStocks,
+  clearError,
+  setSelectedExchange,
+  setSelectedType,
+  setHighlightedSymbol,
+  togglePin,
+  batchUpdateStocks
+} = marketSlice.actions;
+
 export default marketSlice.reducer;

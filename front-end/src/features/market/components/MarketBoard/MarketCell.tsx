@@ -1,27 +1,75 @@
 import { memo, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import styles from "./MarketBoard.module.scss";
+import { formatPrice, formatVol, formatPercent, formatChange, getColorClass } from "../../marketUtils";
+import { useAppSelector } from "@/app/hooks";
+import { marketDataService } from "../../marketDataService";
 
-type CellType = "price" | "vol" | "text";
+type CellType = "price" | "vol" | "percent" | "change" | "text";
 
 interface MarketCellProps {
-  value: any;
+  symbol: string;
+  field: string;
   type?: CellType;
   className?: string;
-  colorClass?: string;
+  fixedColorClass?: string;
+  colorField?: string;
+  isCalculated?: boolean;
 }
 
-/**
- * MarketCell - Optimized cell component with flash animation
- * Only re-renders when value changes, triggers flash effect on update
- */
-const MarketCell = memo(({ value, type = "text", className, colorClass }: MarketCellProps) => {
+const MarketCell = memo(({
+  symbol,
+  field,
+  type = "text",
+  className,
+  fixedColorClass,
+  colorField,
+  isCalculated
+}: MarketCellProps) => {
+  // 1. Initial load from Redux snapshot
+  const reduxStock = useAppSelector(state => state.market.entities[symbol]);
+
+  // 2. Local state for high-frequency updates
+  const [data, setData] = useState<any>(reduxStock || marketDataService.get(symbol));
   const [flashClass, setFlashClass] = useState<string>("");
-  const prevValueRef = useRef<any>(value);
+  const prevValueRef = useRef<any>(undefined);
+
+  // Keep local state in sync if Redux data changes (initial load completion)
+  useEffect(() => {
+    if (reduxStock) {
+      setData(reduxStock);
+    }
+  }, [reduxStock]);
+
+  // 3. Subscribe to REAL-TIME updates via MarketDataService
+  useEffect(() => {
+    const unsubscribe = marketDataService.subscribe(symbol, (updatedStock) => {
+      setData((prev: any) => {
+        if (!prev) return updatedStock;
+
+        const valChanged = prev[field] !== updatedStock[field];
+        const cField = colorField || (type === "price" ? field : undefined);
+        const colorChanged = cField ? prev[cField] !== updatedStock[cField] : false;
+
+        if (valChanged || colorChanged || prev.RE !== updatedStock.RE) {
+          return updatedStock;
+        }
+        return prev;
+      });
+    });
+    return unsubscribe;
+  }, [symbol, field, colorField, type]);
+
+  // Derived values for rendering
+  const value = data ? (isCalculated ? (data.CP ? (data[field] ?? 0) : undefined) : data[field]) : undefined;
+  const ref = data?.RE || 0;
+  const ceil = data?.CL || 0;
+  const flr = data?.FL || 0;
+  const cField = colorField || (type === "price" ? field : undefined);
+  const colorPrice = cField ? data?.[cField] : undefined;
 
   useEffect(() => {
-    if (prevValueRef.current !== undefined && prevValueRef.current !== value) {
-      // Detect if value increased or decreased
+    if (prevValueRef.current !== undefined && prevValueRef.current !== value && value !== undefined) {
       const oldVal = Number(prevValueRef.current) || 0;
       const newVal = Number(value) || 0;
 
@@ -31,10 +79,9 @@ const MarketCell = memo(({ value, type = "text", className, colorClass }: Market
         setFlashClass(styles.flashDown);
       }
 
-      // Remove flash class after animation completes
       const timer = setTimeout(() => {
         setFlashClass("");
-      }, 500);
+      }, 1500);
 
       prevValueRef.current = value;
       return () => clearTimeout(timer);
@@ -43,31 +90,15 @@ const MarketCell = memo(({ value, type = "text", className, colorClass }: Market
     }
   }, [value]);
 
-  // Format value based on type
-  const formatValue = (val: any): string => {
-    if (val === undefined || val === null || val === "") return "";
-
-    switch (type) {
-      case "price": {
-        const num = Number(val);
-        return (num / 1000).toFixed(2);
-      }
-      case "vol": {
-        if (val === 0) return "";
-        const num = Number(val);
-        return (num / 1000).toLocaleString("en-US", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        });
-      }
-      default:
-        return String(val);
-    }
-  };
+  const colorClass = fixedColorClass || getColorClass(colorPrice, ref, ceil, flr);
 
   return (
     <td className={clsx(className, colorClass, flashClass)}>
-      {formatValue(value)}
+      {type === "price" ? formatPrice(value) :
+        type === "vol" ? formatVol(value) :
+          type === "percent" ? formatPercent(value) :
+            type === "change" ? formatChange(value) :
+              (value !== undefined && value !== null ? String(value) : "")}
     </td>
   );
 });

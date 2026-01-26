@@ -11,47 +11,58 @@ export const selectHighlightedSymbol = (state: RootState) => state.market.highli
 export const selectPinnedSymbols = (state: RootState) => state.market.pinnedSymbols;
 
 export const selectFilteredStocks = createSelector(
-  [selectMarketStocks, selectSelectedType, selectPinnedSymbols],
+  [selectMarketStocks, selectSelectedType],
   (stocks, selectedType) => {
-    let filtered = stocks;
-    if (selectedType !== 'ALL') {
-      filtered = stocks.filter(stock => {
-        const type = stock.StockType;
-        const symbol = stock.symbol || "";
+    if (selectedType === 'ALL') return stocks;
 
-        if (selectedType === 'STOCK') {
-          return symbol.length === 3;
-        }
+    return stocks.filter(stock => {
+      const type = stock.StockType;
+      const symbol = stock.SB || "";
 
-        if (selectedType === 'WARRANT') {
-          return type === '4' || symbol.startsWith('C');
-        }
+      if (selectedType === 'STOCK') {
+        return symbol.length === 3;
+      }
 
-        if (selectedType === 'ETF') {
-          return symbol.startsWith('E') || symbol.startsWith('FU');
-        }
+      if (selectedType === 'WARRANT') {
+        return type === '4' || symbol.startsWith('C');
+      }
 
-        return true;
-      });
-    }
+      if (selectedType === 'ETF') {
+        return symbol.startsWith('E') || symbol.startsWith('FU');
+      }
 
-    // Return raw filtered, let sorting happen downstream or split
-    return filtered;
+      return true;
+    });
   }
 );
 
 export const selectPinnedFilteredStocks = createSelector(
   [selectFilteredStocks, selectPinnedSymbols],
   (stocks, pinnedSymbols) => {
-    return stocks.filter(s => pinnedSymbols.includes(s.symbol));
+    return stocks.filter(s => pinnedSymbols.includes(s.SB));
   }
 );
 
 export const selectUnpinnedFilteredStocks = createSelector(
   [selectFilteredStocks, selectPinnedSymbols],
   (stocks, pinnedSymbols) => {
-    return stocks.filter(s => !pinnedSymbols.includes(s.symbol));
+    return stocks.filter(s => !pinnedSymbols.includes(s.SB));
   }
+);
+
+export const selectStockBySymbol = (symbol: string) => createSelector(
+  [selectMarketStocks],
+  (stocks) => stocks.find(s => s.SB === symbol)
+);
+
+export const selectPinnedFilteredStockSymbols = createSelector(
+  [selectPinnedFilteredStocks],
+  (stocks) => stocks.map(s => s.SB)
+);
+
+export const selectUnpinnedFilteredStockSymbols = createSelector(
+  [selectUnpinnedFilteredStocks],
+  (stocks) => stocks.map(s => s.SB)
 );
 
 export const selectSearchSuggestions = (searchTerm: string) => createSelector(
@@ -60,7 +71,7 @@ export const selectSearchSuggestions = (searchTerm: string) => createSelector(
     if (!searchTerm || searchTerm.length < 1) return [];
     const term = searchTerm.toUpperCase();
     return allStocks
-      .filter(stock => stock.symbol.toUpperCase().includes(term))
-      .slice(0, 10); // Limit results for performance
+      .filter(stock => stock.SB.toUpperCase().includes(term))
+      .slice(0, 10);
   }
 );

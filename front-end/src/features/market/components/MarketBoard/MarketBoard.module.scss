@@ -346,32 +346,40 @@
         border-collapse: collapse;
         border-spacing: 0;
         border-bottom: 2px solid #925d1c; // Orange separator
-        
+
         &.emptyPinned {
             border-bottom: none;
         }
 
-        font-family: 'Roboto', sans-serif;
+        font-family: 'Roboto',
+        sans-serif;
         font-size: 11px;
         color: $text-primary;
         table-layout: fixed;
         user-select: none;
 
         thead {
-           background-color: $bg-secondary;
-           tr { height: 22px; }
-           th {
-               border-right: 1px solid $border-color;
-               border-bottom: 1px solid $border-color;
-               padding: 0 2px;
-               background-color: $bg-secondary;
-               font-weight: normal;
-               text-align: center;
-               white-space: nowrap;
-               color: $text-secondary;
-               vertical-align: middle;
-           }
-           .subHeader th { height: 22px; }
+            background-color: $bg-secondary;
+
+            tr {
+                height: 22px;
+            }
+
+            th {
+                border-right: 1px solid $border-color;
+                border-bottom: 1px solid $border-color;
+                padding: 0 2px;
+                background-color: $bg-secondary;
+                font-weight: normal;
+                text-align: center;
+                white-space: nowrap;
+                color: $text-secondary;
+                vertical-align: middle;
+            }
+
+            .subHeader th {
+                height: 22px;
+            }
         }
 
         tbody tr {
@@ -380,10 +388,15 @@
             &.rowHighlighted {
                 background-color: rgba(255, 215, 0, 0.2) !important;
                 transition: background-color 2s ease-out;
-                td { background-color: rgba(255, 215, 0, 0.2) !important; }
+
+                td {
+                    background-color: rgba(255, 215, 0, 0.2) !important;
+                }
             }
 
-            &:hover td { background: color.adjust($bg-primary, $lightness: 5%); }
+            &:hover td {
+                background: color.adjust($bg-primary, $lightness: 5%);
+            }
 
             td {
                 border-right: 1px solid color.adjust($border-color, $lightness: -5%);
@@ -401,7 +414,10 @@
                     display: flex;
                     align-items: center;
                 }
-                &.colCenter { text-align: center; }
+
+                &.colCenter {
+                    text-align: center;
+                }
             }
         }
     }
@@ -415,6 +431,7 @@
         /* Hide scrollbar */
         scrollbar-width: none;
         -ms-overflow-style: none;
+
         &::-webkit-scrollbar {
             display: none;
         }
@@ -436,10 +453,15 @@
             &.rowHighlighted {
                 background-color: rgba(255, 215, 0, 0.2) !important;
                 transition: background-color 2s ease-out;
-                td { background-color: rgba(255, 215, 0, 0.2) !important; }
+
+                td {
+                    background-color: rgba(255, 215, 0, 0.2) !important;
+                }
             }
 
-            &:hover td { background: color.adjust($bg-primary, $lightness: 5%); }
+            &:hover td {
+                background: color.adjust($bg-primary, $lightness: 5%);
+            }
 
             td {
                 border-right: 1px solid color.adjust($border-color, $lightness: -5%);
@@ -460,11 +482,15 @@
                     display: flex;
                     align-items: center;
                 }
-                &.colCenter { text-align: center; }
+
+                &.colCenter {
+                    text-align: center;
+                }
             }
         }
     }
 }
+
 // End of tableWrapper
 
 // Helper classes used in render
@@ -481,28 +507,52 @@
     }
 }
 
-.colorRef { color: $color-ref !important; }
-.colorCeiling { color: $color-ceil !important; }
-.colorFloor { color: $color-floor !important; }
-.colorUp { color: $color-up !important; }
-.colorDown { color: $color-down !important; }
+.colorRef {
+    color: $color-ref !important;
+}
+
+.colorCeiling {
+    color: $color-ceil !important;
+}
+
+.colorFloor {
+    color: $color-floor !important;
+}
+
+.colorUp {
+    color: $color-up !important;
+}
+
+.colorDown {
+    color: $color-down !important;
+}
 
 @keyframes flashUp {
-    0% { background-color: rgba(0, 255, 0, 0.5); }
-    100% { background-color: transparent; }
+    0% {
+        background-color: rgba(0, 255, 0, 0.5);
+    }
+
+    100% {
+        background-color: transparent;
+    }
 }
 
 @keyframes flashDown {
-    0% { background-color: rgba(255, 0, 0, 0.5); }
-    100% { background-color: transparent; }
+    0% {
+        background-color: rgba(255, 0, 0, 0.5);
+    }
+
+    100% {
+        background-color: transparent;
+    }
 }
 
 .flashUp {
-    animation: flashUp 0.5s ease-out;
+    background-color: rgba(0, 255, 0, 0.4) !important;
 }
 
 .flashDown {
-    animation: flashDown 0.5s ease-out;
+    background-color: rgba(255, 0, 0, 0.4) !important;
 }
 
 .tooltip {

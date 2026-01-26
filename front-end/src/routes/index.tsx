@@ -5,6 +5,8 @@ import LayoutDefault from '@/components/layout/LayoutDefault';
 
 import { loginAction } from '@/features/auth/authAction';
 
+import { FormattedMessage } from 'react-intl';
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -26,7 +28,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '*',
-        element: <div>404 - Trang không tồn tại</div>,
+        element: <div><FormattedMessage id="common.not_found" /></div>,
       },
     ],
   },

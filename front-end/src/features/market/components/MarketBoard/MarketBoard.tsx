@@ -10,6 +10,7 @@ export default function MarketBoard() {
   const selectedExchange = useAppSelector(selectSelectedExchange);
 
   // Establish WebSocket connection for real-time updates
+  // MarketWS handles its own lifecycle and only subscribes when data is ready
   MarketWS(selectedExchange);
 
   return (

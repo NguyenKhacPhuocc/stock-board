@@ -1,4 +1,11 @@
 {
+  "common": {
+    "not_found": "404 - Trang không tồn tại",
+    "search_symbol": "Tìm mã CK",
+    "settings": "Cài đặt",
+    "presentation_mode": "Chế độ trình chiếu",
+    "collapse": "Thu gọn"
+  },
   "login": {
     "title": "Đăng nhập Hệ thống",
     "email_label": "Email",
@@ -6,6 +13,32 @@
     "password_label": "Mật khẩu",
     "password_placeholder": "Nhập mật khẩu",
     "submit": "Đăng nhập",
-    "logout": "Thoát"
+    "logout": "Thoát",
+    "error_invalid": "Thông tin đăng nhập không chính xác"
+  },
+  "market": {
+    "symbol": "Mã CK",
+    "ref": "TC",
+    "ceil": "Trần",
+    "floor": "Sàn",
+    "buy": "Mua",
+    "matched": "Khớp lệnh",
+    "sell": "Bán",
+    "total_vol": "Tổng KL",
+    "price": "Giá",
+    "price_n": "Giá {n}",
+    "vol_n": "KL {n}",
+    "high": "Cao",
+    "avg": "TB",
+    "low": "Thấp",
+    "change": "+/-",
+    "percent": "%",
+    "watchlist": "Danh sách theo dõi",
+    "stocks": "Cổ phiếu",
+    "warrants": "Chứng quyền",
+    "etf": "ETF",
+    "closed": "Đóng cửa",
+    "open": "Mở cửa",
+    "billion": "Tỷ"
   }
 }

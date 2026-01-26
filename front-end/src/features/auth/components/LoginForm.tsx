@@ -34,7 +34,7 @@ export default function LoginForm() {
 
       {actionData?.error && (
         <div className={styles.error}>
-          Thông tin đăng nhập không chính xác
+          {intl.formatMessage({ id: 'login.error_invalid' })}
         </div>
       )}
 

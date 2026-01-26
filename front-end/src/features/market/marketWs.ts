@@ -1,82 +1,87 @@
-import { useEffect, useRef } from 'react';
-import { useAppDispatch } from '@/app/hooks';
-import { updateStockData } from './marketSlice';
-import { io, Socket } from 'socket.io-client';
+import { useEffect, useRef, useMemo } from 'react';
+import { useAppDispatch, useAppSelector } from '@/app/hooks';
+import { batchUpdateStocks } from './marketSlice';
+import { selectMarketStocks } from './marketSelectors';
+import { marketDataService } from './marketDataService';
+import io from 'socket.io-client';
 
-/**
- * Socket.IO hook for real-time market data updates
- * Connects to Socket.IO server and dispatches updates to Redux
- */
 export const MarketWS = (exchange: string) => {
   const dispatch = useAppDispatch();
-  const socketRef = useRef<Socket | null>(null);
+  const socketRef = useRef<any>(null);
+  const stocks = useAppSelector(selectMarketStocks);
+
+  const symbols = useMemo(() => {
+    return stocks.map(s => `i:${s.SB}`);
+  }, [stocks.map(s => s.SB).join(',')]); // Stable dependency
 
   useEffect(() => {
-    // Socket.IO URL - adjust to your backend endpoint
-    const SOCKET_URL = 'http://localhost:8080';
+    // Only connect if we have the baseline data from API
+    if (stocks.length === 0) return;
 
-    // Create socket connection
+    const SOCKET_URL = 'http://localhost:3000';
+
     const socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionDelay: 3000,
-      reconnectionAttempts: 3,
-      query: {
-        exchange, // Pass exchange as query parameter
-      }
+      reconnectionAttempts: 5,
     });
 
     socketRef.current = socket;
 
     // Connection event handlers
     socket.on('connect', () => {
-      console.log(`[Socket.IO] Connected to ${exchange} (ID: ${socket.id})`);
+      console.log(`[Socket.IO] Connected to Backend (ID: ${socket.id})`);
 
-      // Join exchange room (if backend uses rooms)
-      socket.emit('join_exchange', exchange);
+      // Initial subscription if symbols are already available
+      if (symbols.length > 0) {
+        socket.emit('subscribe', symbols);
+      }
     });
 
-    socket.on('disconnect', (reason) => {
+    socket.on('disconnect', (reason: any) => {
       console.log(`[Socket.IO] Disconnected: ${reason}`);
     });
 
-    socket.on('connect_error', (error) => {
+    socket.on('connect_error', (error: any) => {
       console.error('[Socket.IO] Connection error:', error);
     });
 
-    // Market data event handlers
+    // Market data event handlers: "i" for Stocks, "idx" for Indices
+    // Use raw BSC data directly (no parsing needed)
+    const handleUpdate = (payload: any) => {
+      if (payload && payload.a === 'u' && Array.isArray(payload.d)) {
+        const batch = payload.d.filter((item: any) => !!item.SB);
 
-    // Single stock update
-    socket.on('stock_update', (data: { symbol: string; data: any }) => {
-      dispatch(updateStockData({
-        symbol: data.symbol,
-        data: data.data
-      }));
-    });
+        if (batch.length > 0) {
+          // 1. Update the High Performance Service immediately
+          marketDataService.batchUpdate(batch);
 
-    // Batch updates (for multiple stocks at once)
-    socket.on('batch_update', (updates: Array<{ symbol: string; data: any }>) => {
-      updates.forEach((update) => {
-        dispatch(updateStockData({
-          symbol: update.symbol,
-          data: update.data
-        }));
-      });
-    });
-
-    // Full snapshot (initial load or refresh)
-    socket.on('market_snapshot', (stocks: any[]) => {
-      console.log(`[Socket.IO] Received snapshot: ${stocks.length} stocks`);
-      // Handle full snapshot if needed
-    });
-
-    // Cleanup on unmount or exchange change
-    return () => {
-      console.log(`[Socket.IO] Cleaning up connection for ${exchange}`);
-      socket.emit('leave_exchange', exchange);
-      socket.disconnect();
+          // 2. Still update Redux for state consistency (can be batched/debouced if needed)
+          dispatch(batchUpdateStocks(batch));
+        }
+      }
     };
-  }, [exchange, dispatch]);
+
+    socket.on('i', (payload: any) => handleUpdate(payload));
+    socket.on('idx', (payload: any) => handleUpdate(payload));
+
+    // Cleanup on unmount
+    return () => {
+      console.log(`[Socket.IO] Cleaning up connection`);
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [exchange, dispatch, stocks.length > 0]);
+
+  // Update subscription when symbols list changes
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (socket && socket.connected && symbols.length > 0) {
+      console.log(`[Socket.IO] Subscribing to ${symbols.length} symbols`);
+      socket.emit('subscribe', symbols);
+    }
+  }, [symbols]);
 
   return socketRef.current;
 };

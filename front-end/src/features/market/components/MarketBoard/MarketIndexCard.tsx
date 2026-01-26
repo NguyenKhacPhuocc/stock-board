@@ -2,12 +2,14 @@ import styles from "@/features/market/components/MarketBoard/MarketBoard.module.
 import MarketIndexChart from "./MarketIndexChart";
 import type { MarketIndexData } from "@/features/market/marketTypes";
 import clsx from "clsx";
+import { useIntl } from "react-intl";
 
 interface Props {
   indexData: MarketIndexData;
 }
 
 export default function MarketIndexCard({ indexData }: Props) {
+  const intl = useIntl();
   const { name, currentValue, change, changePercent, totalVolume, totalValue, counts, chartData, color, status } = indexData;
 
   const formatNumber = (num: number) => {
@@ -43,7 +45,9 @@ export default function MarketIndexCard({ indexData }: Props) {
 
         <div className={styles.statsRow}>
           <span className={styles.volumeTotal}>{formatVolume(totalVolume)}</span>
-          <span className={styles.valueTotal}>CP {formatNumber(totalValue)} Tỷ</span>
+          <span className={styles.valueTotal}>
+            {formatNumber(totalValue)} {intl.formatMessage({ id: 'market.billion' })}
+          </span>
         </div>
 
         <div className={styles.marketCounts}>
@@ -63,7 +67,7 @@ export default function MarketIndexCard({ indexData }: Props) {
             ▼ {counts.floor}
           </div>
           <div className={styles.status}>
-            {status === 'closed' ? 'Đóng cửa' : 'Mở cửa'}
+            {status === 'closed' ? intl.formatMessage({ id: 'market.closed' }) : intl.formatMessage({ id: 'market.open' })}
           </div>
         </div>
       </div>

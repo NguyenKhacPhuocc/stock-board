@@ -22,33 +22,36 @@ export interface MarketIndexData {
   color: 'up' | 'down' | 'ref';
 }
 
+// Using BSC's original short field names for performance (no parsing needed)
 export interface StockInstrument {
-  symbol: string;
-  reference: number;
-  ceiling: number;
-  floor: number;
-  bidPrice1?: number;
-  bidVol1?: number;
-  bidPrice2?: number;
-  bidVol2?: number;
-  bidPrice3?: number;
-  bidVol3?: number;
-  offerPrice1?: number;
-  offerVol1?: number;
-  offerPrice2?: number;
-  offerVol2?: number;
-  offerPrice3?: number;
-  offerVol3?: number;
-  closePrice?: number;
-  closeVol?: number;
-  change?: number;
-  ratioChange?: number;
-  high?: number;
-  low?: number;
-  averagePrice?: number;
-  totalTradedQtty?: number;
-  buyForeignVol?: number;
-  sellForeignVol?: number;
+  SB: string;      // Symbol
+  RE: number;      // Reference price
+  CL: number;      // Ceiling price
+  FL: number;      // Floor price
+  B1?: number;     // Bid Price 1
+  V1?: number;     // Bid Volume 1
+  B2?: number;     // Bid Price 2
+  V2?: number;     // Bid Volume 2
+  B3?: number;     // Bid Price 3
+  V3?: number;     // Bid Volume 3
+  S1?: number;     // Offer/Ask Price 1
+  U1?: number;     // Offer/Ask Volume 1
+  S2?: number;     // Offer/Ask Price 2
+  U2?: number;     // Offer/Ask Volume 2
+  S3?: number;     // Offer/Ask Price 3
+  U3?: number;     // Offer/Ask Volume 3
+  CP?: number;     // Close Price (current/last matched price)
+  CV?: number;     // Close Volume (last matched volume)
+  CH?: number;     // Change (absolute)
+  CHP?: number;    // Change Percent (ratio)
+  HI?: number;     // High price
+  LO?: number;     // Low price
+  AP?: number;     // Average Price
+  TT?: number;     // Total Traded Quantity
+  TV?: number;     // Total Traded Value
+  OP?: number;     // Open price
+  FB?: number;     // Foreign Buy
+  FS?: number;     // Foreign Sell
   [key: string]: any;
 }
 
@@ -56,6 +59,7 @@ export type MarketSymbolType = 'STOCK' | 'WARRANT' | 'ETF' | 'ALL';
 
 export interface MarketState {
   stocks: StockInstrument[]; // Stocks for current exchange
+  entities: Record<string, StockInstrument>; // Normalized data for O(1) cell updates
   allStocks: StockInstrument[]; // Global stocks for search
   loading: boolean;
   error: string | null;

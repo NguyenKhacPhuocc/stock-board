@@ -5,7 +5,7 @@ interface AppState {
 }
 
 const initialState: AppState = {
-  locale: 'vi',
+  locale: (localStorage.getItem('locale') as 'vi' | 'en') || 'vi',
 };
 
 const appSlice = createSlice({
@@ -14,6 +14,7 @@ const appSlice = createSlice({
   reducers: {
     setLocale: (state, action: PayloadAction<'vi' | 'en'>) => {
       state.locale = action.payload;
+      localStorage.setItem('locale', action.payload);
     },
   },
 });

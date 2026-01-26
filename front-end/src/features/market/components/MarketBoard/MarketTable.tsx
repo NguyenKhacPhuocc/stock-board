@@ -1,28 +1,48 @@
-import { useEffect, memo, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
+import { useIntl } from "react-intl";
 import styles from "./MarketBoard.module.scss";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { fetchInstruments, setHighlightedSymbol, togglePin } from "../../marketSlice";
-import { selectFilteredStocks, selectHighlightedSymbol, selectPinnedSymbols } from "../../marketSelectors";
+import {
+  selectPinnedFilteredStockSymbols,
+  selectUnpinnedFilteredStockSymbols,
+  selectHighlightedSymbol
+} from "../../marketSelectors";
 import { getColorClass } from "../../marketUtils";
-import type { StockInstrument } from "../../marketTypes";
 import { PinIcon } from "lucide-react";
 import clsx from "clsx";
 import MarketCell from "./MarketCell";
 
-
+// Optimized row: Only renders layout. Individual cells update themselves.
 const StockRow = memo(({
-  item,
+  symbol,
   isHighlighted,
   isPinned,
 }: {
-  item: StockInstrument,
+  symbol: string,
   isHighlighted: boolean,
   isPinned: boolean,
 }) => {
   const rowRef = useRef<HTMLTableRowElement>(null);
   const dispatch = useAppDispatch();
 
-  // for highlight search row
+  // Select only basic info needed for the row shell
+  // Note: we still need RE/CL/FL for the symbol color
+  const { RE, CL, FL, CP } = useAppSelector(state => {
+    const s = state.market.entities[symbol];
+    return {
+      RE: s?.RE || 0,
+      CL: s?.CL || 0,
+      FL: s?.FL || 0,
+      CP: s?.CP
+    };
+  }, (prev, next) => (
+    prev.RE === next.RE &&
+    prev.CL === next.CL &&
+    prev.FL === next.FL &&
+    prev.CP === next.CP
+  ));
+
   useEffect(() => {
     if (isHighlighted && rowRef.current) {
       rowRef.current.scrollIntoView({ behavior: 'auto', block: 'start' });
@@ -33,40 +53,7 @@ const StockRow = memo(({
     }
   }, [isHighlighted, dispatch]);
 
-  const {
-    symbol,
-    reference,
-    ceiling,
-    floor,
-    bidPrice1,
-    bidVol1,
-    bidPrice2,
-    bidVol2,
-    bidPrice3,
-    bidVol3,
-    offerPrice1,
-    offerVol1,
-    offerPrice2,
-    offerVol2,
-    offerPrice3,
-    offerVol3,
-    closePrice,
-    closeVol,
-    change,
-    ratioChange,
-    high,
-    low,
-    averagePrice,
-    totalTradedQtty,
-    // buyForeignVol,
-    // sellForeignVol,
-  } = item;
-
-  const ref = reference || 0;
-  const ceil = ceiling || 0;
-  const flr = floor || 0;
-  const lastPrice = closePrice || ref;
-  const changeValue = change !== undefined ? change : 0;
+  const colorCode = getColorClass(CP || RE, RE, CL, FL);
 
   return (
     <tr
@@ -84,47 +71,43 @@ const StockRow = memo(({
             dispatch(togglePin(symbol));
           }}
         />
-        <span className={getColorClass(lastPrice, ref, ceil, flr)}>
+        <span className={colorCode}>
           {symbol}
         </span>
       </td>
 
-      {/* Reference, Ceiling, Floor - static values, no flash needed */}
-      <MarketCell value={ref} type="price" colorClass={styles.colorRef} />
-      <MarketCell value={ceil} type="price" colorClass={styles.colorCeiling} />
-      <MarketCell value={flr} type="price" colorClass={styles.colorFloor} />
+      {/* Static-price columns */}
+      <MarketCell symbol={symbol} field="RE" type="price" fixedColorClass={styles.colorRef} />
+      <MarketCell symbol={symbol} field="CL" type="price" fixedColorClass={styles.colorCeiling} />
+      <MarketCell symbol={symbol} field="FL" type="price" fixedColorClass={styles.colorFloor} />
 
-      {/* Buy Side - dynamic values with flash */}
-      <MarketCell value={bidPrice3} type="price" colorClass={getColorClass(bidPrice3, ref, ceil, flr)} />
-      <MarketCell value={bidVol3} type="vol" colorClass={getColorClass(bidPrice3, ref, ceil, flr)} />
-      <MarketCell value={bidPrice2} type="price" colorClass={getColorClass(bidPrice2, ref, ceil, flr)} />
-      <MarketCell value={bidVol2} type="vol" colorClass={getColorClass(bidPrice2, ref, ceil, flr)} />
-      <MarketCell value={bidPrice1} type="price" colorClass={getColorClass(bidPrice1, ref, ceil, flr)} />
-      <MarketCell value={bidVol1} type="vol" colorClass={getColorClass(bidPrice1, ref, ceil, flr)} />
+      {/* Buy Side - Vol cells color depends on their Price counterparts */}
+      <MarketCell symbol={symbol} field="B3" type="price" />
+      <MarketCell symbol={symbol} field="V3" type="vol" colorField="B3" />
+      <MarketCell symbol={symbol} field="B2" type="price" />
+      <MarketCell symbol={symbol} field="V2" type="vol" colorField="B2" />
+      <MarketCell symbol={symbol} field="B1" type="price" />
+      <MarketCell symbol={symbol} field="V1" type="vol" colorField="B1" />
 
-      {/* Matching */}
-      <MarketCell value={lastPrice} type="price" colorClass={getColorClass(lastPrice, ref, ceil, flr)} />
-      <MarketCell value={closeVol} type="vol" colorClass={getColorClass(lastPrice, ref, ceil, flr)} />
-      <td className={getColorClass(lastPrice, ref, ceil, flr)}>
-        {changeValue > 0 ? `+${(changeValue / 1000).toFixed(2)}` : (changeValue / 1000).toFixed(2)}
-      </td>
-      <td className={getColorClass(lastPrice, ref, ceil, flr)}>
-        {ratioChange !== undefined ? `${(ratioChange * 100).toFixed(1)}%` : "0.0%"}
-      </td>
+      {/* Matching - All color depends on CP (closePrice) */}
+      <MarketCell symbol={symbol} field="CP" type="price" />
+      <MarketCell symbol={symbol} field="CV" type="vol" colorField="CP" />
+      <MarketCell symbol={symbol} field="CH" type="change" colorField="CP" isCalculated />
+      <MarketCell symbol={symbol} field="CHP" type="percent" colorField="CP" isCalculated />
 
       {/* Sell Side */}
-      <MarketCell value={offerPrice1} type="price" colorClass={getColorClass(offerPrice1, ref, ceil, flr)} />
-      <MarketCell value={offerVol1} type="vol" colorClass={getColorClass(offerPrice1, ref, ceil, flr)} />
-      <MarketCell value={offerPrice2} type="price" colorClass={getColorClass(offerPrice2, ref, ceil, flr)} />
-      <MarketCell value={offerVol2} type="vol" colorClass={getColorClass(offerPrice2, ref, ceil, flr)} />
-      <MarketCell value={offerPrice3} type="price" colorClass={getColorClass(offerPrice3, ref, ceil, flr)} />
-      <MarketCell value={offerVol3} type="vol" colorClass={getColorClass(offerPrice3, ref, ceil, flr)} />
+      <MarketCell symbol={symbol} field="S1" type="price" />
+      <MarketCell symbol={symbol} field="U1" type="vol" colorField="S1" />
+      <MarketCell symbol={symbol} field="S2" type="price" />
+      <MarketCell symbol={symbol} field="U2" type="vol" colorField="S2" />
+      <MarketCell symbol={symbol} field="S3" type="price" />
+      <MarketCell symbol={symbol} field="U3" type="vol" colorField="S3" />
 
-      {/* Volume and Prices */}
-      <MarketCell value={totalTradedQtty || closeVol} type="vol" />
-      <MarketCell value={high} type="price" colorClass={styles.colorUp} />
-      <MarketCell value={averagePrice} type="price" colorClass={getColorClass(averagePrice, ref, ceil, flr)} />
-      <MarketCell value={low} type="price" colorClass={styles.colorDown} />
+      {/* Summary */}
+      <MarketCell symbol={symbol} field="TT" type="vol" fixedColorClass={styles.colorRef} />
+      <MarketCell symbol={symbol} field="HI" type="price" fixedColorClass={styles.colorUp} />
+      <MarketCell symbol={symbol} field="AP" type="price" />
+      <MarketCell symbol={symbol} field="LO" type="price" fixedColorClass={styles.colorDown} />
     </tr>
   );
 });
@@ -135,49 +118,65 @@ const TableColGroup = memo(() => (
     <col style={{ width: "40px" }} />
     <col style={{ width: "40px" }} />
     <col style={{ width: "40px" }} />
-    {/* 20 remaining columns auto-distributed */}
     {Array.from({ length: 20 }).map((_, i) => <col key={i} />)}
   </colgroup>
 ));
 
-const TableHeader = memo(() => (
-  <thead>
-    <tr>
-      <th rowSpan={2}>Mã CK</th>
-      <th rowSpan={2} className={styles.colorRef}>TC</th>
-      <th rowSpan={2} className={styles.colorCeiling}>Trần</th>
-      <th rowSpan={2} className={styles.colorFloor}>Sàn</th>
-      <th colSpan={6}>Mua</th>
-      <th colSpan={4}>Khớp lệnh</th>
-      <th colSpan={6}>Bán</th>
-      <th rowSpan={2}>Tổng KL</th>
-      <th colSpan={3}>Giá</th>
-    </tr>
-    <tr className={styles.subHeader}>
-      <th>Giá 3</th><th>KL 3</th><th>Giá 2</th><th>KL 2</th><th>Giá 1</th><th>KL 1</th>
-      <th>Giá</th><th>KL</th><th>+/-</th><th>%</th>
-      <th>Giá 1</th><th>KL 1</th><th>Giá 2</th><th>KL 2</th><th>Giá 3</th><th>KL 3</th>
-      <th>Cao</th><th>TB</th><th>Thấp</th>
-    </tr>
-  </thead>
-));
+const TableHeader = memo(() => {
+  const intl = useIntl();
+  return (
+    <thead>
+      <tr>
+        <th rowSpan={2}>{intl.formatMessage({ id: 'market.symbol' })}</th>
+        <th rowSpan={2} className={styles.colorRef}>{intl.formatMessage({ id: 'market.ref' })}</th>
+        <th rowSpan={2} className={styles.colorCeiling}>{intl.formatMessage({ id: 'market.ceil' })}</th>
+        <th rowSpan={2} className={styles.colorFloor}>{intl.formatMessage({ id: 'market.floor' })}</th>
+        <th colSpan={6}>{intl.formatMessage({ id: 'market.buy' })}</th>
+        <th colSpan={4}>{intl.formatMessage({ id: 'market.matched' })}</th>
+        <th colSpan={6}>{intl.formatMessage({ id: 'market.sell' })}</th>
+        <th rowSpan={2}>{intl.formatMessage({ id: 'market.total_vol' })}</th>
+        <th colSpan={3}>{intl.formatMessage({ id: 'market.price' })}</th>
+      </tr>
+      <tr className={styles.subHeader}>
+        <th>{intl.formatMessage({ id: 'market.price_n' }, { n: 3 })}</th>
+        <th>{intl.formatMessage({ id: 'market.vol_n' }, { n: 3 })}</th>
+        <th>{intl.formatMessage({ id: 'market.price_n' }, { n: 2 })}</th>
+        <th>{intl.formatMessage({ id: 'market.vol_n' }, { n: 2 })}</th>
+        <th>{intl.formatMessage({ id: 'market.price_n' }, { n: 1 })}</th>
+        <th>{intl.formatMessage({ id: 'market.vol_n' }, { n: 1 })}</th>
+        <th>{intl.formatMessage({ id: 'market.price' })}</th>
+        <th>{intl.formatMessage({ id: 'market.total_vol' })}</th>
+        <th>{intl.formatMessage({ id: 'market.change' })}</th>
+        <th>{intl.formatMessage({ id: 'market.percent' })}</th>
+        <th>{intl.formatMessage({ id: 'market.price_n' }, { n: 1 })}</th>
+        <th>{intl.formatMessage({ id: 'market.vol_n' }, { n: 1 })}</th>
+        <th>{intl.formatMessage({ id: 'market.price_n' }, { n: 2 })}</th>
+        <th>{intl.formatMessage({ id: 'market.vol_n' }, { n: 2 })}</th>
+        <th>{intl.formatMessage({ id: 'market.price_n' }, { n: 3 })}</th>
+        <th>{intl.formatMessage({ id: 'market.vol_n' }, { n: 3 })}</th>
+        <th>{intl.formatMessage({ id: 'market.high' })}</th>
+        <th>{intl.formatMessage({ id: 'market.avg' })}</th>
+        <th>{intl.formatMessage({ id: 'market.low' })}</th>
+      </tr>
+    </thead>
+  );
+});
+
+import { marketDataService } from "../../marketDataService";
 
 export default function MarketTable() {
   const dispatch = useAppDispatch();
   const highlightedSymbol = useAppSelector(selectHighlightedSymbol);
+  const pinnedSymbols = useAppSelector(selectPinnedFilteredStockSymbols);
+  const unpinnedSymbols = useAppSelector(selectUnpinnedFilteredStockSymbols);
+  const allStocks = useAppSelector(state => state.market.stocks);
 
-  // Use selectors efficiently
-  const pinnedStocks = useAppSelector(state => {
-    const all = selectFilteredStocks(state);
-    const pinned = selectPinnedSymbols(state);
-    return all.filter(s => pinned.includes(s.symbol));
-  });
-
-  const unpinnedStocks = useAppSelector(state => {
-    const all = selectFilteredStocks(state);
-    const pinned = selectPinnedSymbols(state);
-    return all.filter(s => !pinned.includes(s.symbol));
-  });
+  // Sync Redux snapshot to High Performance Service
+  useEffect(() => {
+    if (allStocks.length > 0) {
+      marketDataService.setInitialData(allStocks);
+    }
+  }, [allStocks]);
 
   useEffect(() => {
     dispatch(fetchInstruments("HOSE"));
@@ -185,32 +184,30 @@ export default function MarketTable() {
 
   return (
     <div className={styles.tableWrapper}>
-      {/* Pinned Table - Fixed at Top */}
-      <table className={clsx(styles.pinnedTable, pinnedStocks.length === 0 && styles.emptyPinned)}>
+      <table className={clsx(styles.pinnedTable, pinnedSymbols.length === 0 && styles.emptyPinned)}>
         <TableColGroup />
         <TableHeader />
         <tbody>
-          {pinnedStocks.map((item: StockInstrument) => (
+          {pinnedSymbols.map((sym: string) => (
             <StockRow
-              key={item.symbol}
-              item={item}
-              isHighlighted={highlightedSymbol === item.symbol}
+              key={sym}
+              symbol={sym}
+              isHighlighted={highlightedSymbol === sym}
               isPinned={true}
             />
           ))}
         </tbody>
       </table>
 
-      {/* Unpinned Table - Scrollable */}
       <div className={styles.scrollableTableContainer}>
         <table>
           <TableColGroup />
           <tbody className="unpinned-body">
-            {unpinnedStocks.map((item: StockInstrument) => (
+            {unpinnedSymbols.map((sym: string) => (
               <StockRow
-                key={item.symbol}
-                item={item}
-                isHighlighted={highlightedSymbol === item.symbol}
+                key={sym}
+                symbol={sym}
+                isHighlighted={highlightedSymbol === sym}
                 isPinned={false}
               />
             ))}

@@ -1,4 +1,11 @@
 {
+  "common": {
+    "not_found": "404 - Page not found",
+    "search_symbol": "Search Symbol",
+    "settings": "Settings",
+    "presentation_mode": "Presentation Mode",
+    "collapse": "Collapse"
+  },
   "login": {
     "title": "System Login",
     "email_label": "Email",
@@ -6,6 +13,32 @@
     "password_label": "Password",
     "password_placeholder": "Enter password",
     "submit": "Login",
-    "logout": "Logout"
+    "logout": "Logout",
+    "error_invalid": "Incorrect login information"
+  },
+  "market": {
+    "symbol": "Symbol",
+    "ref": "Ref",
+    "ceil": "Ceil",
+    "floor": "Floor",
+    "buy": "Buy",
+    "matched": "Matched",
+    "sell": "Sell",
+    "total_vol": "Total Vol",
+    "price": "Price",
+    "price_n": "Price {n}",
+    "vol_n": "Vol {n}",
+    "high": "High",
+    "avg": "Avg",
+    "low": "Low",
+    "change": "+/-",
+    "percent": "%",
+    "watchlist": "Watchlist",
+    "stocks": "Stocks",
+    "warrants": "Warrants",
+    "etf": "ETF",
+    "closed": "Closed",
+    "open": "Open",
+    "billion": "Bn"
   }
 }

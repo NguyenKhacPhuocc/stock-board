@@ -2,7 +2,7 @@ import { memo, useEffect, useRef } from "react";
 import { useIntl } from "react-intl";
 import styles from "./MarketTable.module.scss";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import { fetchInstruments, setHighlightedSymbol, togglePin } from "../../marketSlice";
+import { setHighlightedSymbol, togglePin } from "../../marketSlice";
 import {
   selectPinnedFilteredStockSymbols,
   selectUnpinnedFilteredStockSymbols,
@@ -167,7 +167,6 @@ const TableHeader = memo(() => {
 import { marketDataService } from "../../marketDataService";
 
 export default function MarketTable() {
-  const dispatch = useAppDispatch();
   const highlightedSymbol = useAppSelector(selectHighlightedSymbol);
   const pinnedSymbols = useAppSelector(selectPinnedFilteredStockSymbols);
   const unpinnedSymbols = useAppSelector(selectUnpinnedFilteredStockSymbols);
@@ -179,10 +178,6 @@ export default function MarketTable() {
       marketDataService.setInitialData(allStocks);
     }
   }, [allStocks]);
-
-  useEffect(() => {
-    dispatch(fetchInstruments("HOSE"));
-  }, [dispatch]);
 
   return (
     <div className={styles.tableWrapper}>

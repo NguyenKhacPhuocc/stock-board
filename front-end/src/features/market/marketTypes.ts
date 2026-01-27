@@ -58,13 +58,13 @@ export interface StockInstrument {
 export type MarketSymbolType = 'STOCK' | 'WARRANT' | 'ETF' | 'ALL';
 
 export interface MarketState {
-  stocks: StockInstrument[]; // Stocks for current exchange
-  entities: Record<string, StockInstrument>; // Normalized data for O(1) cell updates
-  allStocks: StockInstrument[]; // Global stocks for search
+  stocks: StockInstrument[];
+  entities: Record<string, StockInstrument>;
+  allQuotes: Map<string, any>;
   loading: boolean;
   error: string | null;
-  selectedExchange: string;
-  selectedType: MarketSymbolType;
+  selectedExchange: 'HOSE' | 'HNX' | 'UPCOM';
+  selectedType: string;
   highlightedSymbol: string | null;
   pinnedSymbols: string[];
 }

@@ -2,9 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { ChevronDown, ChevronUp, Search, Settings, Video } from "lucide-react";
 import { useIntl } from "react-intl";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import { fetchInstruments, setSelectedExchange, setSelectedType, fetchAllInstruments, setHighlightedSymbol } from "../../marketSlice";
-import { selectSelectedExchange, selectSelectedType, selectAllStocks } from "../../marketSelectors";
-import type { MarketSymbolType, StockInstrument } from "../../marketTypes";
+import { setSelectedExchange, setSelectedType, setHighlightedSymbol } from "../../marketSlice";
+import { selectSelectedExchange, selectSelectedType, selectMarketStocks } from "../../marketSelectors";
 import styles from "./MarketToolBar.module.scss";
 
 export default function MarketToolBar() {
@@ -12,15 +11,11 @@ export default function MarketToolBar() {
   const dispatch = useAppDispatch();
   const selectedExchange = useAppSelector(selectSelectedExchange);
   const selectedType = useAppSelector(selectSelectedType);
-  const allStocks = useAppSelector(selectAllStocks);
+  const allStocks = useAppSelector(selectMarketStocks);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    dispatch(fetchAllInstruments());
-  }, [dispatch]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -34,8 +29,8 @@ export default function MarketToolBar() {
 
   const suggestions = searchTerm.length > 0
     ? allStocks
-      .filter(s => s.SB.toUpperCase().includes(searchTerm.toUpperCase()))
-      .sort((a, b) => {
+      .filter((s: any) => s.SB.toUpperCase().includes(searchTerm.toUpperCase()))
+      .sort((a: any, b: any) => {
         const term = searchTerm.toUpperCase();
         const aSym = a.SB.toUpperCase();
         const bSym = b.SB.toUpperCase();
@@ -51,26 +46,22 @@ export default function MarketToolBar() {
     : [];
 
   const handleExchangeClick = (exchange: string) => {
-    dispatch(setSelectedExchange(exchange));
+    dispatch(setSelectedExchange(exchange as 'HOSE' | 'HNX' | 'UPCOM'));
     dispatch(setSelectedType('STOCK'));
-    dispatch(fetchInstruments(exchange));
   };
 
-  const handleTypeClick = (type: MarketSymbolType) => {
+  const handleTypeClick = (type: string) => {
     dispatch(setSelectedType(type));
   };
 
-  const handleSelectStock = (stock: StockInstrument) => {
+  const handleSelectStock = (stock: any) => {
     const targetExchange = stock.exchange || selectedExchange;
 
-    // Switch exchange if symbol belongs to a different one
     if (targetExchange !== selectedExchange) {
       dispatch(setSelectedExchange(targetExchange));
-      dispatch(fetchInstruments(targetExchange));
     }
 
-    // Auto-select type (Stock/Warrant/ETF)
-    let targetType: MarketSymbolType = 'STOCK';
+    let targetType = 'STOCK';
     if (stock.StockType === '4' || stock.SB.startsWith('C')) targetType = 'WARRANT';
     else if (stock.SB.startsWith('E') || stock.SB.startsWith('FU')) targetType = 'ETF';
 

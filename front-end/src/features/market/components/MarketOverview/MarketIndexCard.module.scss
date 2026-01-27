@@ -1,0 +1,159 @@
+@use "sass:color";
+@use "@/styles/variables.scss" as *;
+
+.card {
+    background-color: #000;
+    border: 1px solid #111;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: 'Roboto', sans-serif;
+    font-size: 11px;
+
+    .chartContainer {
+        height: 100px;
+        position: relative;
+
+        .chartHeader {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            display: flex;
+            gap: 4px;
+            z-index: 10;
+
+            button {
+                background: rgba(255, 255, 255, 0.1);
+                border: none;
+                color: #fff;
+                padding: 2px;
+                border-radius: 2px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                &:hover {
+                    background: rgba(255, 255, 255, 0.2);
+                }
+            }
+        }
+    }
+
+    .summary {
+        padding: 5px 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        color: #fff;
+
+        .mainInfo {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+
+            .indexName {
+                font-weight: bold;
+                color: #aaa;
+                font-size: 12px;
+            }
+
+            .indexValue {
+                font-weight: bold;
+                font-size: 13px;
+            }
+        }
+
+        .statsRow {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 1px;
+
+            span {
+                white-space: nowrap;
+            }
+
+            .volumeTotal {
+                color: #fff;
+            }
+
+            .valueTotal {
+                color: #f7941d; // Total value in Gold/Orange
+            }
+        }
+
+        .marketCounts {
+            display: flex;
+            gap: 6px;
+            margin-top: 2px;
+            font-weight: 500;
+
+            .countItem {
+                display: flex;
+                align-items: center;
+                gap: 2px;
+            }
+        }
+    }
+
+    // Color modifiers
+    &.up {
+
+        .indexValue,
+        .changeText {
+            color: #00ff00;
+        }
+    }
+
+    &.down {
+
+        .indexValue,
+        .changeText {
+            color: #ff3b3b;
+        }
+    }
+
+    &.ref {
+
+        .indexValue,
+        .changeText {
+            color: #ffd700;
+        }
+    }
+}
+
+.colorRef {
+    color: $color-ref !important;
+}
+
+.colorCeiling {
+    color: $color-ceil !important;
+}
+
+.colorFloor {
+    color: $color-floor !important;
+}
+
+.colorUp {
+    color: $color-up !important;
+}
+
+.colorDown {
+    color: $color-down !important;
+}
+
+.tooltip {
+    color: #000 !important;
+    font-family: 'Roboto', sans-serif;
+
+    :global {
+        .apexcharts-tooltip-title {
+            color: #000 !important;
+        }
+
+        .apexcharts-tooltip-text {
+            color: #000 !important;
+        }
+    }
+}

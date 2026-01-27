@@ -1,4 +1,4 @@
-import styles from "@/features/market/components/MarketBoard/MarketBoard.module.scss";
+import styles from "./MarketIndexCard.module.scss";
 import MarketIndexChart from "./MarketIndexChart";
 import type { MarketIndexData } from "@/features/market/marketTypes";
 import clsx from "clsx";

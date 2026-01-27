@@ -39,6 +39,7 @@
     "etf": "ETF",
     "closed": "Closed",
     "open": "Open",
-    "billion": "Bn"
+    "billion": "Bn",
+    "pin": "Double click to pin"
   }
 }

@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef } from "react";
 import { useIntl } from "react-intl";
-import styles from "./MarketBoard.module.scss";
+import styles from "./MarketTable.module.scss";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { fetchInstruments, setHighlightedSymbol, togglePin } from "../../marketSlice";
 import {
@@ -13,7 +13,6 @@ import { PinIcon } from "lucide-react";
 import clsx from "clsx";
 import MarketCell from "./MarketCell";
 
-// Optimized row: Only renders layout. Individual cells update themselves.
 const StockRow = memo(({
   symbol,
   isHighlighted,
@@ -54,6 +53,7 @@ const StockRow = memo(({
   }, [isHighlighted, dispatch]);
 
   const colorCode = getColorClass(CP || RE, RE, CL, FL);
+  const intl = useIntl();
 
   return (
     <tr
@@ -70,7 +70,9 @@ const StockRow = memo(({
             e.stopPropagation();
             dispatch(togglePin(symbol));
           }}
-        />
+        >
+          <title>{intl.formatMessage({ id: 'market.pin' })}</title>
+        </PinIcon>
         <span className={colorCode}>
           {symbol}
         </span>

@@ -5,7 +5,7 @@ import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { fetchInstruments, setSelectedExchange, setSelectedType, fetchAllInstruments, setHighlightedSymbol } from "../../marketSlice";
 import { selectSelectedExchange, selectSelectedType, selectAllStocks } from "../../marketSelectors";
 import type { MarketSymbolType, StockInstrument } from "../../marketTypes";
-import styles from "./MarketBoard.module.scss";
+import styles from "./MarketToolBar.module.scss";
 
 export default function MarketToolBar() {
   const intl = useIntl();

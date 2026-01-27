@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import styles from "./MarketBoard.module.scss";
+import styles from "./MarketCell.module.scss";
 import { formatPrice, formatVol, formatPercent, formatChange, getColorClass } from "../../marketUtils";
 import { useAppSelector } from "@/app/hooks";
 import { marketDataService } from "../../marketDataService";

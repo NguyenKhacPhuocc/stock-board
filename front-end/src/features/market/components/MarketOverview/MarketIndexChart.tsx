@@ -1,6 +1,6 @@
 import Chart from "react-apexcharts";
 import type { ApexOptions } from "apexcharts";
-import styles from "./MarketBoard.module.scss";
+import styles from "./MarketIndexCard.module.scss";
 
 interface Props {
   data: {

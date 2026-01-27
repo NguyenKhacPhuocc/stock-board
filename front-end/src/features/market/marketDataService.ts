@@ -1,12 +1,8 @@
 type Listener = (data: any) => void;
-
-// High-performance service for handling real-time market data updates 
-// outside of the standard React/Redux render cycle.
 class MarketDataService {
     private entities: Record<string, any> = {};
     private listeners: Record<string, Set<Listener>> = {};
 
-    // Update a single symbol's data and notify its listeners
     public update(symbol: string, data: any) {
         const current = this.entities[symbol] || {};
         const updated = { ...current, ...data };
@@ -31,15 +27,11 @@ class MarketDataService {
         });
     }
 
-    // Subscribe to real-time updates for a specific symbol.
-    // Returns an unsubscribe function.
     public subscribe(symbol: string, listener: Listener) {
         if (!this.listeners[symbol]) {
             this.listeners[symbol] = new Set();
         }
         this.listeners[symbol].add(listener);
-
-        // Immediately notify with current data if available
         if (this.entities[symbol]) {
             listener(this.entities[symbol]);
         }

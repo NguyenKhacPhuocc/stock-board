@@ -1,80 +1,124 @@
-import { Server as HttpServer } from 'http';
-import { Server, Socket } from 'socket.io';
-import { bscFeed } from '../feeds/bsc.feed';
-import { marketService } from '../services/market.service';
-import { subscriptionManager } from './subscriptionManager';
+import { Server as HttpServer } from "http";
+import { Server, Socket } from "socket.io";
+import { bscFeed } from "../feeds/bsc.feed";
+import { marketService } from "../services/market.service";
+import { subscriptionManager } from "./subscriptionManager";
+import { verifyToken, JwtPayload } from "../utils/jwt";
 
 let io: Server;
 
 const logger = {
   debug: (msg: string, data?: any) => {
-    console.log(`[Socket Server] ${msg}`, data || '');
+    console.log(`[Socket Server] ${msg}`, data || "");
   },
   error: (msg: string, error?: any) => {
-    console.error(`[Socket Server] ${msg}`, error || '');
+    console.error(`[Socket Server] ${msg}`, error || "");
   },
 };
 
-const handleSocketConnection = (socket: Socket) => {
+// Extended socket interface with user data
+interface AuthenticatedSocket extends Socket {
+  user?: JwtPayload;
+}
+
+// Middleware to verify JWT token (optional - allows anonymous connections)
+const authMiddleware = (
+  socket: AuthenticatedSocket,
+  next: (err?: Error) => void,
+) => {
+  const token = socket.handshake.auth?.token;
+
+  if (token) {
+    try {
+      const decoded = verifyToken(token);
+      socket.user = decoded;
+      logger.debug("Client authenticated", {
+        userId: decoded.userId,
+        socketId: socket.id,
+      });
+    } catch (error: any) {
+      logger.debug("Invalid token provided, continuing as anonymous", {
+        socketId: socket.id,
+      });
+      // Don't reject - allow anonymous connections for market data
+    }
+  } else {
+    logger.debug("No token provided, continuing as anonymous", {
+      socketId: socket.id,
+    });
+  }
+
+  next();
+};
+
+const handleSocketConnection = (socket: AuthenticatedSocket) => {
   const clientId = socket.id;
-  logger.debug('Client connected', { clientId });
+  const isAuthenticated = !!socket.user;
+
+  logger.debug("Client connected", {
+    clientId,
+    authenticated: isAuthenticated,
+    userId: socket.user?.userId,
+  });
 
   const snapshot = marketService.getSnapshot();
   if (snapshot.length > 0) {
-    logger.debug('Sending initial snapshot to client', {
+    logger.debug("Sending initial snapshot to client", {
       clientId,
       symbolCount: snapshot.length,
     });
-    socket.emit('i', { a: 'u', d: snapshot });
+    socket.emit("i", { a: "u", d: snapshot });
   }
 
-  socket.on('subscribe', (symbols: string[], ack?: (msg: any) => void) => {
+  socket.on("subscribe", (symbols: string[], ack?: (msg: any) => void) => {
     if (!Array.isArray(symbols) || symbols.length === 0) {
-      logger.error('Invalid subscribe request', { clientId, symbols });
-      if (ack) ack({ status: 'error', message: 'Invalid symbols' });
+      logger.error("Invalid subscribe request", { clientId, symbols });
+      if (ack) ack({ status: "error", message: "Invalid symbols" });
       return;
     }
 
     subscriptionManager.subscribe(clientId, symbols);
 
-    const displaySymbols = symbols.slice(0, 5).join(', ') +
-      (symbols.length > 5 ? `... (+${symbols.length - 5} more)` : '');
-    logger.debug('Subscribe request processed', {
+    const displaySymbols =
+      symbols.slice(0, 5).join(", ") +
+      (symbols.length > 5 ? `... (+${symbols.length - 5} more)` : "");
+    logger.debug("Subscribe request processed", {
       clientId,
       symbolCount: symbols.length,
       symbols: displaySymbols,
     });
 
-    if (ack) ack({ status: 'ok', subscribed: symbols.length });
+    if (ack) ack({ status: "ok", subscribed: symbols.length });
   });
 
-  socket.on('unsubscribe', (symbols: string[], ack?: (msg: any) => void) => {
+  socket.on("unsubscribe", (symbols: string[], ack?: (msg: any) => void) => {
     if (!Array.isArray(symbols) || symbols.length === 0) {
-      logger.error('Invalid unsubscribe request', { clientId, symbols });
-      if (ack) ack({ status: 'error', message: 'Invalid symbols' });
+      logger.error("Invalid unsubscribe request", { clientId, symbols });
+      if (ack) ack({ status: "error", message: "Invalid symbols" });
       return;
     }
 
     subscriptionManager.unsubscribe(clientId, symbols);
 
-    const displaySymbols = symbols.slice(0, 5).join(', ') +
-      (symbols.length > 5 ? `... (+${symbols.length - 5} more)` : '');
-    logger.debug('Unsubscribe request processed', {
+    const displaySymbols =
+      symbols.slice(0, 5).join(", ") +
+      (symbols.length > 5 ? `... (+${symbols.length - 5} more)` : "");
+    logger.debug("Unsubscribe request processed", {
       clientId,
       symbolCount: symbols.length,
       symbols: displaySymbols,
     });
 
-    if (ack) ack({ status: 'ok', unsubscribed: symbols.length });
+    if (ack) ack({ status: "ok", unsubscribed: symbols.length });
   });
 
-  socket.on('disconnect', () => {
+  socket.on("disconnect", () => {
     subscriptionManager.unsubscribeAll(clientId);
-    logger.debug('Client disconnected and cleaned up', { clientId });
+    logger.debug("Client disconnected and cleaned up", { clientId });
   });
 
-  socket.on('error', (error: any) => {
-    logger.error('Socket error', { clientId, error: error.message });
+  socket.on("error", (error: any) => {
+    logger.error("Socket error", { clientId, error: error.message });
   });
 };
 
@@ -83,32 +127,38 @@ export const initSocket = (server: HttpServer) => {
     allowEIO3: true,
     cors: {
       origin: [
-        process.env.FRONTEND_URL || 'http://localhost:5173',
-        'http://localhost',
-        'http://127.0.0.1',
+        process.env.FRONTEND_URL || "http://localhost:5173",
+        "http://localhost",
+        "http://127.0.0.1",
       ],
-      methods: ['GET', 'POST'],
+      methods: ["GET", "POST"],
       credentials: true,
     },
+    // Connection settings
+    pingTimeout: 60000,
+    pingInterval: 25000,
   });
 
-  logger.debug('Socket Server Initialized');
+  logger.debug("Socket Server Initialized");
+
+  // Apply authentication middleware
+  io.use(authMiddleware);
 
   bscFeed.connect();
 
-  marketService.on('i', (batch) => {
-    io.emit('i', { a: 'u', d: batch });
+  marketService.on("i", (batch) => {
+    io.emit("i", { a: "u", d: batch });
   });
 
-  marketService.on('idx', (batch) => {
-    io.emit('idx', { a: 'u', d: batch });
+  marketService.on("idx", (batch) => {
+    io.emit("idx", { a: "u", d: batch });
   });
 
-  io.on('connection', handleSocketConnection);
+  io.on("connection", handleSocketConnection);
 
   setInterval(() => {
     const metrics = subscriptionManager.getMetrics();
-    logger.debug('Subscription metrics', metrics);
+    logger.debug("Subscription metrics", metrics);
   }, 60000);
 
   return io;
@@ -116,7 +166,7 @@ export const initSocket = (server: HttpServer) => {
 
 export const getIO = () => {
   if (!io) {
-    throw new Error('Socket.io not initialized');
+    throw new Error("Socket.io not initialized");
   }
   return io;
 };

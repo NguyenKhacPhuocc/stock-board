@@ -1,58 +1,65 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import type { PayloadAction } from '@reduxjs/toolkit';
-import {
-  fetchAllQuotes,
-  fetchAllExchangeStocks,
-  type StockInstrument,
-  type QuoteData,
-} from './marketService';
-import type { MarketState } from './marketTypes';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import type { PayloadAction } from "@reduxjs/toolkit";
+import { fetchAllQuotes, fetchAllExchangeStocks } from "./marketApi";
+import type {
+  StockInstrument,
+  MarketState,
+  ExchangeType,
+  Logger,
+  NormalizedQuoteMap,
+} from "./marketTypes";
 
-const getInitialExchange = (): 'HOSE' | 'HNX' | 'UPCOM' => {
-  if (typeof window === 'undefined') return 'HOSE';
-  const stored = sessionStorage.getItem('selectedExchange');
-  return (stored as 'HOSE' | 'HNX' | 'UPCOM') || 'HOSE';
+const getInitialExchange = (): ExchangeType => {
+  if (typeof window === "undefined") return "HOSE";
+  const stored = sessionStorage.getItem("selectedExchange");
+  return (stored as ExchangeType) || "HOSE";
 };
 
+const createLogger = (prefix: string): Logger => ({
+  debug: (msg: string, data?: unknown): void => {
+    console.log(`[${prefix}] ${msg}`, data || "");
+  },
+  error: (msg: string, error?: unknown): void => {
+    console.error(`[${prefix}] ${msg}`, error || "");
+  },
+});
+
 export const initializeMarket = createAsyncThunk(
-  'market/initialize',
-  async (_, { rejectWithValue }) => {
-    const logger = {
-      debug: (msg: string, data?: any) => {
-        console.log(`[MarketSlice] ${msg}`, data || '');
-      },
-      error: (msg: string, error?: any) => {
-        console.error(`[MarketSlice] ${msg}`, error || '');
-      },
-    };
+  "market/initialize",
+  async (exchange: ExchangeType = "HOSE", { rejectWithValue }) => {
+    const logger = createLogger("MarketSlice");
 
     try {
-      logger.debug('Starting market initialization');
-      logger.debug('Step 1: Fetching all quotes from BSC API');
+      logger.debug("Starting market initialization");
+
+      // Step 1: Fetch quotes (static info: symbol, ceiling, floor, reference)
+      logger.debug("Step 1: Fetching quotes");
       const allQuotes = await fetchAllQuotes();
-      logger.debug('Step 2: Quotes loaded successfully');
-      return allQuotes;
+      logger.debug("Quotes loaded", { count: allQuotes.size });
+
+      // Step 2: Fetch instruments (real-time data: prices, volumes)
+      logger.debug(`Step 2: Fetching instruments for ${exchange}`);
+      const stocks = await fetchAllExchangeStocks(exchange, allQuotes);
+      logger.debug(`Loaded ${stocks.length} stocks for ${exchange}`);
+
+      return { allQuotes, stocks, exchange };
     } catch (error) {
-      logger.error('Market initialization failed', error);
-      return rejectWithValue('Failed to initialize market');
+      logger.error("Market initialization failed", error);
+      return rejectWithValue("Failed to initialize market");
     }
-  }
+  },
 );
 
 export const loadExchangeStocks = createAsyncThunk(
-  'market/loadExchangeStocks',
+  "market/loadExchangeStocks",
   async (
-    { exchange, quoteData }: { exchange: string; quoteData: Map<string, QuoteData> },
-    { rejectWithValue }
+    {
+      exchange,
+      quoteData,
+    }: { exchange: string; quoteData: NormalizedQuoteMap },
+    { rejectWithValue },
   ) => {
-    const logger = {
-      debug: (msg: string, data?: any) => {
-        console.log(`[MarketSlice] ${msg}`, data || '');
-      },
-      error: (msg: string, error?: any) => {
-        console.error(`[MarketSlice] ${msg}`, error || '');
-      },
-    };
+    const logger = createLogger("MarketSlice");
 
     try {
       logger.debug(`Loading stocks for exchange: ${exchange}`);
@@ -63,7 +70,7 @@ export const loadExchangeStocks = createAsyncThunk(
       logger.error(`Failed to load stocks for ${exchange}`, error);
       return rejectWithValue(`Failed to load ${exchange} stocks`);
     }
-  }
+  },
 );
 
 const initialState: MarketState = {
@@ -73,28 +80,34 @@ const initialState: MarketState = {
   loading: false,
   error: null,
   selectedExchange: getInitialExchange(),
-  selectedType: 'STOCK',
-  pinnedSymbols: typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('pinnedSymbols') || '[]') : [],
+  selectedType: "STOCK",
+  pinnedSymbols:
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("pinnedSymbols") || "[]")
+      : [],
   highlightedSymbol: null,
 };
 
 const marketSlice = createSlice({
-  name: 'market',
+  name: "market",
   initialState,
   reducers: {
-    batchUpdateStocks: (state, action: PayloadAction<Partial<StockInstrument>[]>) => {
-      action.payload.forEach(update => {
-        const symbol = (update as any).SB;
+    batchUpdateStocks: (
+      state,
+      action: PayloadAction<Partial<StockInstrument>[]>,
+    ) => {
+      action.payload.forEach((update) => {
+        const symbol = update.SB;
         if (symbol && state.entities[symbol]) {
           state.entities[symbol] = { ...state.entities[symbol], ...update };
         }
       });
     },
 
-    setSelectedExchange: (state, action: PayloadAction<'HOSE' | 'HNX' | 'UPCOM'>) => {
+    setSelectedExchange: (state, action: PayloadAction<ExchangeType>) => {
       state.selectedExchange = action.payload;
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('selectedExchange', action.payload);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("selectedExchange", action.payload);
       }
     },
 
@@ -110,8 +123,11 @@ const marketSlice = createSlice({
       } else {
         state.pinnedSymbols.push(symbol);
       }
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('pinnedSymbols', JSON.stringify(state.pinnedSymbols));
+      if (typeof window !== "undefined") {
+        localStorage.setItem(
+          "pinnedSymbols",
+          JSON.stringify(state.pinnedSymbols),
+        );
       }
     },
 
@@ -124,21 +140,27 @@ const marketSlice = createSlice({
     },
   },
 
-  extraReducers: builder => {
+  extraReducers: (builder) => {
     builder
-      .addCase(initializeMarket.pending, state => {
+      .addCase(initializeMarket.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(initializeMarket.fulfilled, (state, action) => {
-        state.allQuotes = action.payload;
+        const { allQuotes, stocks } = action.payload;
+        state.allQuotes = allQuotes;
+        state.stocks = stocks;
+        state.entities = {};
+        stocks.forEach((stock) => {
+          state.entities[stock.SB] = stock;
+        });
         state.loading = false;
       })
       .addCase(initializeMarket.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      .addCase(loadExchangeStocks.pending, state => {
+      .addCase(loadExchangeStocks.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
@@ -146,8 +168,8 @@ const marketSlice = createSlice({
         const { stocks } = action.payload;
         state.stocks = stocks;
         state.entities = {};
-        stocks.forEach(stock => {
-          state.entities[(stock as any).SB] = stock;
+        stocks.forEach((stock) => {
+          state.entities[stock.SB] = stock;
         });
         state.loading = false;
       })

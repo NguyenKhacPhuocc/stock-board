@@ -1,24 +1,47 @@
-import { createSlice } from '@reduxjs/toolkit';
-import { loginThunk } from './authThunks';
+import { createSlice } from "@reduxjs/toolkit";
+import { loginThunk } from "./authThunks";
+
+// SSR-safe localStorage helper
+const getStoredToken = (): string | null => {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("accessToken");
+};
+
+const setStoredToken = (token: string): void => {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("accessToken", token);
+  }
+};
+
+const removeStoredToken = (): void => {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("accessToken");
+  }
+};
+
+export interface User {
+  id: number;
+  email: string;
+  username?: string;
+  role: string;
+}
 
 interface AuthState {
   isAuthenticated: boolean;
-  user: any | null;
+  user: User | null;
   loading: boolean;
   error: string | null;
 }
 
-const token = localStorage.getItem('accessToken');
-
 const initialState: AuthState = {
-  isAuthenticated: token !== null ? true : false,
+  isAuthenticated: getStoredToken() !== null,
   user: null,
   loading: false,
   error: null,
 };
 
 const authSlice = createSlice({
-  name: 'auth',
+  name: "auth",
   initialState,
   reducers: {
     setLogin: (state, action) => {
@@ -30,11 +53,11 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.user = null;
       state.error = null;
-      localStorage.removeItem('accessToken');
+      removeStoredToken();
     },
     clearError: (state) => {
       state.error = null;
-    }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -45,8 +68,8 @@ const authSlice = createSlice({
       .addCase(loginThunk.fulfilled, (state, action) => {
         state.loading = false;
         state.isAuthenticated = true;
-        state.user = action.payload.user; // Only store user info in state, token is in localStorage
-        localStorage.setItem('accessToken', action.payload.accessToken);
+        state.user = action.payload.user;
+        setStoredToken(action.payload.accessToken);
       })
       .addCase(loginThunk.rejected, (state, action) => {
         state.loading = false;

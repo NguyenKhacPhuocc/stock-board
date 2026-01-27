@@ -1,15 +1,20 @@
 import styles from "./components/MarketOverview/MarketIndexCard.module.scss";
+import type { StockInstrument } from "./marketTypes";
+
+type PriceValue = number | string | undefined | null;
 
 // Format price from absolute value to decimal (e.g., 7920 -> 7.92)
-export const formatPrice = (val: any): string => {
-  if (val === undefined || val === null || val === "" || Number(val) === 0) return "";
+export const formatPrice = (val: PriceValue): string => {
+  if (val === undefined || val === null || val === "" || Number(val) === 0)
+    return "";
   const num = Number(val) / 1000;
   return num.toFixed(2);
 };
 
 // Format volume following HOSE standards
-export const formatVol = (val: any): string => {
-  if (val === undefined || val === null || val === "" || Number(val) === 0) return "";
+export const formatVol = (val: PriceValue): string => {
+  if (val === undefined || val === null || val === "" || Number(val) === 0)
+    return "";
   const raw = Number(val);
   if (raw < 1000) {
     return (raw / 10).toFixed(0);
@@ -23,21 +28,20 @@ export const formatVol = (val: any): string => {
 };
 
 // Format percentage (converts ratio to percentage string)
-export const formatPercent = (val: any): string => {
+export const formatPercent = (val: PriceValue): string => {
   if (val === undefined || val === null || val === "") return "";
 
   const ratio = Number(val);
-  const percent = ratio * 100;
+  const percent = ratio;
 
   if (Math.abs(percent) < 0.005) return "0.00%";
 
-  const sign = percent > 0 ? "+" : ""; 
-  return `${sign}${percent.toFixed(2)}%`; 
+  const sign = percent > 0 ? "+" : "";
+  return `${sign}${percent.toFixed(2)}%`;
 };
 
-
 // Format absolute change (e.g., 60 -> +0.06)
-export const formatChange = (val: any): string => {
+export const formatChange = (val: PriceValue): string => {
   if (val === undefined || val === null || val === "") return "";
   const num = Number(val) / 1000;
   if (Math.abs(num) < 0.0001) return "0.00";
@@ -50,7 +54,7 @@ export const getColorClass = (
   price: number | undefined | null,
   ref: number,
   ceil: number,
-  floor: number
+  floor: number,
 ): string => {
   if (!price || !ref) return styles.colorRef;
   const p = Number(price);
@@ -66,19 +70,21 @@ export const getColorClass = (
 };
 
 // Normalize data from REST API (long names) to WebSocket format (BSC short names)
-export const normalizeBSCData = (item: any): any => {
+// Using 'any' here because raw API data can have many different field names
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const normalizeBSCData = (item: any): Partial<StockInstrument> => {
   if (!item) return {};
 
-  // API returns changePercent as a whole number (e.g., -2.25). 
+  // API returns changePercent as a whole number (e.g., -2.25).
   // WebSocket uses ratio (e.g., -0.0225). We normalize to ratio.
-  const changePercent = item.changePercent !== undefined ? item.changePercent / 100 : undefined;
+  const changePercent =
+    item.changePercent !== undefined ? item.changePercent / 100 : undefined;
 
   return {
-    ...item,
-    SB: item.SB || item.symbol || item.id,
-    RE: item.RE || item.reference || item.r,
-    CL: item.CL || item.ceiling || item.c,
-    FL: item.FL || item.floor || item.f,
+    SB: item.SB || item.symbol || item.id || "",
+    RE: item.RE || item.reference || item.r || 0,
+    CL: item.CL || item.ceiling || item.c || 0,
+    FL: item.FL || item.floor || item.f || 0,
     CP: item.CP || item.closePrice || item.p,
     CV: item.CV || item.closeVol || item.v,
     B1: item.B1 || item.bidPrice1,

@@ -1,10 +1,13 @@
 export interface LoginResponse {
   accessToken: string;
-  user: {
-    id: number;
-    email: string;
-    role: string;
-  };
+  user: User;
+}
+
+export interface User {
+  id: number;
+  email: string;
+  username?: string;
+  role: string;
 }
 
 export interface LoginData {

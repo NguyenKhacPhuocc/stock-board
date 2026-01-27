@@ -1,20 +1,47 @@
 import { memo, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import styles from "./MarketCell.module.scss";
-import { formatPrice, formatVol, formatPercent, formatChange, getColorClass } from "../../marketUtils";
 import { useAppSelector } from "@/app/hooks";
-import { marketDataService } from "../../marketDataService";
+import { formatPrice, formatVol, formatPercent, formatChange, getColorClass } from "../../marketUtils";
+import { marketCache } from "../../marketCache";
+import type { StockInstrument, CellType, FieldValue, MarketCellProps } from "../../marketTypes";
+import styles from "./MarketCell.module.scss";
 
-type CellType = "price" | "vol" | "percent" | "change" | "text";
+const FLASH_DURATION = 500;
 
-interface MarketCellProps {
-  symbol: string;
-  field: string;
-  type?: CellType;
-  className?: string;
-  fixedColorClass?: string;
-  colorField?: string;
-  isCalculated?: boolean;
+function getFieldValue(data: StockInstrument | undefined, field: string): FieldValue {
+  if (!data) return undefined;
+  return (data as unknown as Record<string, FieldValue>)[field];
+}
+
+function determineFlashColor(
+  value: number,
+  ref: number,
+  ceil: number,
+  flr: number,
+  styles: Record<string, string>
+): string {
+  if (value === ceil && ceil > 0) return styles.flashCeiling;
+  if (value === flr && flr > 0) return styles.flashFloor;
+  if (value > ref) return styles.flashUp;
+  if (value < ref) return styles.flashDown;
+  return styles.flashRef;
+}
+
+function formatCellValue(value: FieldValue, type: CellType): string {
+  if (value === undefined || value === null) return "";
+
+  switch (type) {
+    case "price":
+      return formatPrice(value);
+    case "vol":
+      return formatVol(value);
+    case "percent":
+      return formatPercent(value);
+    case "change":
+      return formatChange(value);
+    default:
+      return String(value);
+  }
 }
 
 const MarketCell = memo(({
@@ -26,79 +53,77 @@ const MarketCell = memo(({
   colorField,
   isCalculated
 }: MarketCellProps) => {
-  // 1. Initial load from Redux snapshot
   const reduxStock = useAppSelector(state => state.market.entities[symbol]);
-
-  // 2. Local state for high-frequency updates
-  const [data, setData] = useState<any>(reduxStock || marketDataService.get(symbol));
+  const [data, setData] = useState<StockInstrument | undefined>(
+    reduxStock || marketCache.get(symbol)
+  );
   const [flashClass, setFlashClass] = useState<string>("");
-  const prevValueRef = useRef<any>(undefined);
+  const prevValueRef = useRef<FieldValue>(undefined);
 
-  // Keep local state in sync if Redux data changes (initial load completion)
   useEffect(() => {
     if (reduxStock) {
       setData(reduxStock);
     }
   }, [reduxStock]);
 
-  // 3. Subscribe to REAL-TIME updates via MarketDataService
   useEffect(() => {
-    const unsubscribe = marketDataService.subscribe(symbol, (updatedStock) => {
-      setData((prev: any) => {
+    const unsubscribe = marketCache.subscribe(symbol, (updatedStock) => {
+      setData((prev) => {
         if (!prev) return updatedStock;
 
-        const valChanged = prev[field] !== updatedStock[field];
-        const cField = colorField || (type === "price" ? field : undefined);
-        const colorChanged = cField ? prev[cField] !== updatedStock[cField] : false;
+        const valueChanged = getFieldValue(prev, field) !== getFieldValue(updatedStock, field);
+        const colorSource = colorField || (type === "price" ? field : undefined);
+        const colorChanged = colorSource
+          ? getFieldValue(prev, colorSource) !== getFieldValue(updatedStock, colorSource)
+          : false;
 
-        if (valChanged || colorChanged || prev.RE !== updatedStock.RE) {
-          return updatedStock;
-        }
-        return prev;
+        const shouldUpdate = valueChanged || colorChanged || prev.RE !== updatedStock.RE;
+        return shouldUpdate ? updatedStock : prev;
       });
     });
     return unsubscribe;
   }, [symbol, field, colorField, type]);
 
-  // Derived values for rendering
-  const value = data ? (isCalculated ? (data.CP ? (data[field] ?? 0) : undefined) : data[field]) : undefined;
+  const value = data
+    ? isCalculated
+      ? (data.CP ? (getFieldValue(data, field) ?? 0) : undefined)
+      : getFieldValue(data, field)
+    : undefined;
+
   const ref = data?.RE || 0;
   const ceil = data?.CL || 0;
   const flr = data?.FL || 0;
-  const cField = colorField || (type === "price" ? field : undefined);
-  const colorPrice = cField ? data?.[cField] : undefined;
+  const colorSource = colorField || (type === "price" ? field : undefined);
+  const colorPrice = colorSource ? getFieldValue(data, colorSource) as number | undefined : undefined;
 
   useEffect(() => {
-    if (prevValueRef.current !== undefined && prevValueRef.current !== value && value !== undefined) {
-      const oldVal = Number(prevValueRef.current) || 0;
-      const newVal = Number(value) || 0;
+    const hasNoPreviousValue = prevValueRef.current === undefined;
+    const valueUnchanged = prevValueRef.current === value;
+    const noValue = value === undefined;
 
-      if (newVal > oldVal) {
-        setFlashClass(styles.flashUp);
-      } else if (newVal < oldVal) {
-        setFlashClass(styles.flashDown);
-      }
-
-      const timer = setTimeout(() => {
-        setFlashClass("");
-      }, 500);
-
+    if (hasNoPreviousValue || valueUnchanged || noValue) {
       prevValueRef.current = value;
-      return () => clearTimeout(timer);
-    } else {
-      prevValueRef.current = value;
+      return;
     }
-  }, [value]);
+
+    const newVal = Number(value) || 0;
+    const flashColor = determineFlashColor(newVal, ref, ceil, flr, styles);
+    setFlashClass(flashColor);
+
+    const timer = setTimeout(() => {
+      setFlashClass("");
+    }, FLASH_DURATION);
+
+    prevValueRef.current = value;
+    return () => clearTimeout(timer);
+  }, [value, ref, ceil, flr]);
 
   const colorClass = fixedColorClass || getColorClass(colorPrice, ref, ceil, flr);
+  const formattedValue = formatCellValue(value, type);
 
   return (
     <td className={clsx(className, colorClass, flashClass)}>
-      {type === "price" ? formatPrice(value) :
-        type === "vol" ? formatVol(value) :
-          type === "percent" ? formatPercent(value) :
-            type === "change" ? formatChange(value) :
-              (value !== undefined && value !== null ? String(value) : "")}
+      {formattedValue}
     </td>
   );
 });

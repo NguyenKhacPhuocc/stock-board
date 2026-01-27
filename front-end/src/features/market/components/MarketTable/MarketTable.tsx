@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef } from "react";
 import { useIntl } from "react-intl";
-import styles from "./MarketTable.module.scss";
+import clsx from "clsx";
+import { PinIcon } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { setHighlightedSymbol, togglePin } from "../../marketSlice";
 import {
@@ -9,51 +10,78 @@ import {
   selectHighlightedSymbol
 } from "../../marketSelectors";
 import { getColorClass } from "../../marketUtils";
-import { PinIcon } from "lucide-react";
-import clsx from "clsx";
+import { marketCache } from "../../marketCache";
 import MarketCell from "./MarketCell";
+import styles from "./MarketTable.module.scss";
+
+const HIGHLIGHT_TIMEOUT = 2000;
+
+const SymbolCell = memo(({ symbol, isPinned }: { symbol: string; isPinned: boolean }) => {
+  const dispatch = useAppDispatch();
+  const intl = useIntl();
+
+  const { RE, CL, FL, CP } = useAppSelector(
+    state => {
+      const stock = state.market.entities[symbol];
+      return {
+        RE: stock?.RE || 0,
+        CL: stock?.CL || 0,
+        FL: stock?.FL || 0,
+        CP: stock?.CP
+      };
+    },
+    (prev, next) => (
+      prev.RE === next.RE &&
+      prev.CL === next.CL &&
+      prev.FL === next.FL &&
+      prev.CP === next.CP
+    )
+  );
+
+  const colorCode = getColorClass(CP || RE, RE, CL, FL);
+
+  const handlePinToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    dispatch(togglePin(symbol));
+  };
+
+  return (
+    <td>
+      <PinIcon
+        className={clsx(styles.iconPin, isPinned && styles.pinned)}
+        onDoubleClick={handlePinToggle}
+      >
+        <title>{intl.formatMessage({ id: 'market.pin' })}</title>
+      </PinIcon>
+      <span className={colorCode}>{symbol}</span>
+    </td>
+  );
+});
+
+SymbolCell.displayName = 'SymbolCell';
 
 const StockRow = memo(({
   symbol,
   isHighlighted,
   isPinned,
 }: {
-  symbol: string,
-  isHighlighted: boolean,
-  isPinned: boolean,
+  symbol: string;
+  isHighlighted: boolean;
+  isPinned: boolean;
 }) => {
   const rowRef = useRef<HTMLTableRowElement>(null);
   const dispatch = useAppDispatch();
 
-  // Select only basic info needed for the row shell
-  // Note: we still need RE/CL/FL for the symbol color
-  const { RE, CL, FL, CP } = useAppSelector(state => {
-    const s = state.market.entities[symbol];
-    return {
-      RE: s?.RE || 0,
-      CL: s?.CL || 0,
-      FL: s?.FL || 0,
-      CP: s?.CP
-    };
-  }, (prev, next) => (
-    prev.RE === next.RE &&
-    prev.CL === next.CL &&
-    prev.FL === next.FL &&
-    prev.CP === next.CP
-  ));
-
   useEffect(() => {
-    if (isHighlighted && rowRef.current) {
-      rowRef.current.scrollIntoView({ behavior: 'auto', block: 'start' });
-      const timer = setTimeout(() => {
-        dispatch(setHighlightedSymbol(null));
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [isHighlighted, dispatch]);
+    if (!isHighlighted || !rowRef.current) return;
 
-  const colorCode = getColorClass(CP || RE, RE, CL, FL);
-  const intl = useIntl();
+    rowRef.current.scrollIntoView({ behavior: 'auto', block: 'start' });
+    const timer = setTimeout(() => {
+      dispatch(setHighlightedSymbol(null));
+    }, HIGHLIGHT_TIMEOUT);
+
+    return () => clearTimeout(timer);
+  }, [isHighlighted, dispatch]);
 
   return (
     <tr
@@ -63,20 +91,7 @@ const StockRow = memo(({
         isPinned && styles.rowPinned
       )}
     >
-      <td>
-        <PinIcon
-          className={clsx(styles.iconPin, isPinned && styles.pinned)}
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            dispatch(togglePin(symbol));
-          }}
-        >
-          <title>{intl.formatMessage({ id: 'market.pin' })}</title>
-        </PinIcon>
-        <span className={colorCode}>
-          {symbol}
-        </span>
-      </td>
+      <SymbolCell symbol={symbol} isPinned={isPinned} />
 
       {/* Static-price columns */}
       <MarketCell symbol={symbol} field="RE" type="price" fixedColorClass={styles.colorRef} />
@@ -106,7 +121,7 @@ const StockRow = memo(({
       <MarketCell symbol={symbol} field="U3" type="vol" colorField="S3" />
 
       {/* Summary */}
-      <MarketCell symbol={symbol} field="TT" type="vol"/>
+      <MarketCell symbol={symbol} field="TT" type="vol" fixedColorClass={styles.colorWhite} />
       <MarketCell symbol={symbol} field="HI" type="price" fixedColorClass={styles.colorUp} />
       <MarketCell symbol={symbol} field="AP" type="price" />
       <MarketCell symbol={symbol} field="LO" type="price" fixedColorClass={styles.colorDown} />
@@ -164,7 +179,9 @@ const TableHeader = memo(() => {
   );
 });
 
-import { marketDataService } from "../../marketDataService";
+StockRow.displayName = 'StockRow';
+TableColGroup.displayName = 'TableColGroup';
+TableHeader.displayName = 'TableHeader';
 
 export default function MarketTable() {
   const highlightedSymbol = useAppSelector(selectHighlightedSymbol);
@@ -172,10 +189,9 @@ export default function MarketTable() {
   const unpinnedSymbols = useAppSelector(selectUnpinnedFilteredStockSymbols);
   const allStocks = useAppSelector(state => state.market.stocks);
 
-  // Sync Redux snapshot to High Performance Service
   useEffect(() => {
     if (allStocks.length > 0) {
-      marketDataService.setInitialData(allStocks);
+      marketCache.setInitialData(allStocks);
     }
   }, [allStocks]);
 

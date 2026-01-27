@@ -1,10 +1,48 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, ChevronUp, Search, Settings, Video } from "lucide-react";
 import { useIntl } from "react-intl";
+import clsx from "clsx";
+import { ChevronDown, ChevronUp, Search, Settings, Video } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { setSelectedExchange, setSelectedType, setHighlightedSymbol } from "../../marketSlice";
 import { selectSelectedExchange, selectSelectedType, selectMarketStocks } from "../../marketSelectors";
+import type { StockInstrument, ExchangeType } from "../../marketTypes";
 import styles from "./MarketToolBar.module.scss";
+
+
+function sortSuggestions(stocks: StockInstrument[], searchTerm: string): StockInstrument[] {
+  const term = searchTerm.toUpperCase();
+
+  return stocks.sort((a, b) => {
+    const aSym = a.SB.toUpperCase();
+    const bSym = b.SB.toUpperCase();
+
+    if (aSym === term) return -1;
+    if (bSym === term) return 1;
+
+    const aStarts = aSym.startsWith(term);
+    const bStarts = bSym.startsWith(term);
+
+    if (aStarts && !bStarts) return -1;
+    if (!aStarts && bStarts) return 1;
+    if (aSym.length !== bSym.length) return aSym.length - bSym.length;
+
+    return aSym.localeCompare(bSym);
+  });
+}
+
+function filterStocks(stocks: StockInstrument[], searchTerm: string): StockInstrument[] {
+  if (!searchTerm) return [];
+
+  const term = searchTerm.toUpperCase();
+  const filtered = stocks.filter((stock) => stock.SB.toUpperCase().includes(term));
+  return sortSuggestions(filtered, searchTerm);
+}
+
+function getStockType(stock: StockInstrument): string {
+  if (stock.StockType === '4' || stock.SB.startsWith('C')) return 'WARRANT';
+  if (stock.SB.startsWith('E') || stock.SB.startsWith('FU')) return 'ETF';
+  return 'STOCK';
+}
 
 export default function MarketToolBar() {
   const intl = useIntl();
@@ -27,26 +65,10 @@ export default function MarketToolBar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const suggestions = searchTerm.length > 0
-    ? allStocks
-      .filter((s: any) => s.SB.toUpperCase().includes(searchTerm.toUpperCase()))
-      .sort((a: any, b: any) => {
-        const term = searchTerm.toUpperCase();
-        const aSym = a.SB.toUpperCase();
-        const bSym = b.SB.toUpperCase();
-        if (aSym === term) return -1;
-        if (bSym === term) return 1;
-        const aStarts = aSym.startsWith(term);
-        const bStarts = bSym.startsWith(term);
-        if (aStarts && !bStarts) return -1;
-        if (!aStarts && bStarts) return 1;
-        if (aSym.length !== bSym.length) return aSym.length - bSym.length;
-        return aSym.localeCompare(bSym);
-      })
-    : [];
+  const suggestions = filterStocks(allStocks, searchTerm);
 
-  const handleExchangeClick = (exchange: string) => {
-    dispatch(setSelectedExchange(exchange as 'HOSE' | 'HNX' | 'UPCOM'));
+  const handleExchangeClick = (exchange: ExchangeType) => {
+    dispatch(setSelectedExchange(exchange));
     dispatch(setSelectedType('STOCK'));
   };
 
@@ -54,22 +76,24 @@ export default function MarketToolBar() {
     dispatch(setSelectedType(type));
   };
 
-  const handleSelectStock = (stock: any) => {
+  const handleSelectStock = (stock: StockInstrument) => {
     const targetExchange = stock.exchange || selectedExchange;
+    const targetType = getStockType(stock);
 
     if (targetExchange !== selectedExchange) {
-      dispatch(setSelectedExchange(targetExchange));
+      dispatch(setSelectedExchange(targetExchange as ExchangeType));
     }
-
-    let targetType = 'STOCK';
-    if (stock.StockType === '4' || stock.SB.startsWith('C')) targetType = 'WARRANT';
-    else if (stock.SB.startsWith('E') || stock.SB.startsWith('FU')) targetType = 'ETF';
 
     dispatch(setSelectedType(targetType));
     dispatch(setHighlightedSymbol(stock.SB));
 
     setSearchTerm(stock.SB);
     setShowSuggestions(false);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value.toUpperCase());
+    setShowSuggestions(true);
   };
 
   return (
@@ -81,10 +105,7 @@ export default function MarketToolBar() {
             type="text"
             placeholder={intl.formatMessage({ id: 'common.search_symbol' })}
             value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value.toUpperCase());
-              setShowSuggestions(true);
-            }}
+            onChange={(e) => handleSearchChange(e.target.value)}
             onFocus={() => setShowSuggestions(true)}
             style={{ textTransform: 'uppercase' }}
           />
@@ -110,26 +131,29 @@ export default function MarketToolBar() {
         </div>
 
         <div className={styles.marketTabs}>
-          {['HOSE', 'HNX', 'UPCOM'].map((ex) => (
-            <div
-              key={ex}
-              className={`${styles.tab} ${selectedExchange === ex && (selectedType === 'STOCK' || selectedType === 'ALL') ? styles.active : ""}`}
-              onClick={() => handleExchangeClick(ex)}
-            >
-              {ex}
-            </div>
-          ))}
+          {(['HOSE', 'HNX', 'UPCOM'] as const).map((ex) => {
+            const isActive = selectedExchange === ex && (selectedType === 'STOCK' || selectedType === 'ALL');
+            return (
+              <div
+                key={ex}
+                className={clsx(styles.tab, isActive && styles.active)}
+                onClick={() => handleExchangeClick(ex)}
+              >
+                {ex}
+              </div>
+            );
+          })}
         </div>
 
-        <div className={`${styles.marketTabs} ${styles.secondaryTabs}`}>
+        <div className={clsx(styles.marketTabs, styles.secondaryTabs)}>
           <div
-            className={`${styles.tab} ${selectedType === 'WARRANT' ? styles.active : ""}`}
+            className={clsx(styles.tab, selectedType === 'WARRANT' && styles.active)}
             onClick={() => handleTypeClick('WARRANT')}
           >
             {intl.formatMessage({ id: 'market.warrants' })}
           </div>
           <div
-            className={`${styles.tab} ${selectedType === 'ETF' ? styles.active : ""}`}
+            className={clsx(styles.tab, selectedType === 'ETF' && styles.active)}
             onClick={() => handleTypeClick('ETF')}
           >
             {intl.formatMessage({ id: 'market.etf' })}

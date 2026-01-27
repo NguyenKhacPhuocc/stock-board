@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import styles from './MarketBoard.module.scss';
 import overviewStyles from './MarketOverview/MarketOverview.module.scss';
 import MarketOverview from './MarketOverview/MarketOverview';
@@ -11,65 +11,53 @@ import {
   setSelectedExchange,
 } from '../marketSlice';
 import {
-  selectMarketStocks,
-  selectMarketLoading,
-  selectMarketError,
   selectSelectedExchange,
   selectAllQuotes,
 } from '../marketSelectors';
 import { useMarketWebSocket } from '../marketWs';
 
-const logger = {
-  debug: (msg: string, data?: any) => {
+import type { Logger, ExchangeType } from '../marketTypes';
+
+const logger: Logger = {
+  debug: (msg: string, data?: unknown): void => {
     console.log(`[MarketBoard] ${msg}`, data || '');
   },
-  error: (msg: string, error?: any) => {
+  error: (msg: string, error?: unknown): void => {
     console.error(`[MarketBoard] ${msg}`, error || '');
   },
 };
 
 export default function MarketBoard() {
   const dispatch = useAppDispatch();
-  const stocks = useAppSelector(selectMarketStocks);
-  const loading = useAppSelector(selectMarketLoading);
-  const error = useAppSelector(selectMarketError);
   const selectedExchange = useAppSelector(selectSelectedExchange);
   const allQuotes = useAppSelector(selectAllQuotes);
+  const isInitialized = useRef(false);
+  const prevExchange = useRef(selectedExchange);
 
   useMarketWebSocket(selectedExchange);
 
+  // Initialize market data only once on mount
   useEffect(() => {
-    logger.debug('MarketBoard mounted, initializing market data');
-    dispatch(initializeMarket());
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (allQuotes.size === 0) {
-      logger.debug('Waiting for quotes to load...');
-      return;
+    if (!isInitialized.current) {
+      logger.debug('MarketBoard mounted, initializing market data');
+      dispatch(initializeMarket(selectedExchange));
+      isInitialized.current = true;
     }
+  }, [dispatch, selectedExchange]);
 
-    logger.debug(`Loading stocks for exchange: ${selectedExchange}`);
-    dispatch(
-      loadExchangeStocks({
-        exchange: selectedExchange,
-        quoteData: allQuotes,
-      })
-    );
-  }, [selectedExchange, allQuotes, dispatch]);
+  // When exchange changes (after initialization), only fetch instruments
+  useEffect(() => {
+    if (isInitialized.current && prevExchange.current !== selectedExchange) {
+      logger.debug(`Exchange changed to ${selectedExchange}, fetching instruments only`);
+      dispatch(loadExchangeStocks({ exchange: selectedExchange, quoteData: allQuotes }));
+      prevExchange.current = selectedExchange;
+    }
+  }, [dispatch, selectedExchange, allQuotes]);
 
-  const handleExchangeChange = (exchange: 'HOSE' | 'HNX' | 'UPCOM') => {
+  const handleExchangeChange = (exchange: ExchangeType) => {
     logger.debug(`Changing exchange to ${exchange}`);
     dispatch(setSelectedExchange(exchange));
   };
-
-  if (loading && stocks.length === 0) {
-    return <div className={styles.loading}>Loading market data...</div>;
-  }
-
-  if (error && stocks.length === 0) {
-    return <div className={styles.error}>{error}</div>;
-  }
 
   return (
     <div className={styles.marketBoard}>

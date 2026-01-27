@@ -2,63 +2,79 @@
 
 // Helper classes for table cells
 .iconPin {
-    width: 16px;
-    height: 16px;
-    color: $text-secondary;
-    margin-right: 4px;
-    transition: transform 0.2s;
-    color: $text-secondary;
-    
-    &.pinned {
-        color: $text-primary;
-        transform: rotate(45deg);
-    }
+  width: 16px;
+  height: 16px;
+  color: $text-secondary;
+  margin-right: 4px;
+  transition: transform 0.2s;
+  color: $text-secondary;
+
+  &.pinned {
+    color: $text-primary;
+    transform: rotate(45deg);
+  }
 }
 
 .colorRef {
-    color: $color-ref !important;
+  color: $color-ref !important;
 }
 
 .colorCeiling {
-    color: $color-ceil !important;
+  color: $color-ceil !important;
 }
 
 .colorFloor {
-    color: $color-floor !important;
+  color: $color-floor !important;
 }
 
 .colorUp {
-    color: $color-up !important;
+  color: $color-up !important;
 }
 
 .colorDown {
-    color: $color-down !important;
+  color: $color-down !important;
+}
+
+.colorWhite {
+  color: #ffffff !important;
 }
 
 @keyframes flashUp {
-    0% {
-        background-color: rgba(0, 255, 0, 0.5);
-    }
+  0% {
+    background-color: rgba(0, 255, 0, 0.5);
+  }
 
-    100% {
-        background-color: transparent;
-    }
+  100% {
+    background-color: transparent;
+  }
 }
 
 @keyframes flashDown {
-    0% {
-        background-color: rgba(255, 0, 0, 0.5);
-    }
+  0% {
+    background-color: rgba(255, 0, 0, 0.5);
+  }
 
-    100% {
-        background-color: transparent;
-    }
+  100% {
+    background-color: transparent;
+  }
 }
 
 .flashUp {
-    background-color: rgba(0, 255, 0, 0.4) !important;
+  background-color: rgba($color-up, 0.4) !important;
 }
 
 .flashDown {
-    background-color: rgba(255, 0, 0, 0.4) !important;
+  background-color: rgba($color-down, 0.4) !important;
+}
+
+.flashRef {
+  background-color: rgba($color-ref, 0.4) !important;
+}
+
+.flashCeiling {
+  background-color: rgba($color-ceil, 0.4) !important;
+}
+
+.flashFloor {
+  background-color: rgba($color-floor, 0.4) !important;
 }

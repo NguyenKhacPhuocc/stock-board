@@ -25,11 +25,16 @@ export const formatVol = (val: any): string => {
 // Format percentage (converts ratio to percentage string)
 export const formatPercent = (val: any): string => {
   if (val === undefined || val === null || val === "") return "";
-  const num = Number(val) * 100;
-  if (Math.abs(num) < 0.001) return "0.00%";
-  const sign = num > 0 ? "+" : "";
-  return `${sign}${num.toFixed(1)}%`;
+
+  const ratio = Number(val);
+  const percent = ratio * 100;
+
+  if (Math.abs(percent) < 0.005) return "0.00%";
+
+  const sign = percent > 0 ? "+" : ""; 
+  return `${sign}${percent.toFixed(2)}%`; 
 };
+
 
 // Format absolute change (e.g., 60 -> +0.06)
 export const formatChange = (val: any): string => {

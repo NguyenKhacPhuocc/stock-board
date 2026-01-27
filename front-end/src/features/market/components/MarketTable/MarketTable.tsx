@@ -106,7 +106,7 @@ const StockRow = memo(({
       <MarketCell symbol={symbol} field="U3" type="vol" colorField="S3" />
 
       {/* Summary */}
-      <MarketCell symbol={symbol} field="TT" type="vol" fixedColorClass={styles.colorRef} />
+      <MarketCell symbol={symbol} field="TT" type="vol"/>
       <MarketCell symbol={symbol} field="HI" type="price" fixedColorClass={styles.colorUp} />
       <MarketCell symbol={symbol} field="AP" type="price" />
       <MarketCell symbol={symbol} field="LO" type="price" fixedColorClass={styles.colorDown} />

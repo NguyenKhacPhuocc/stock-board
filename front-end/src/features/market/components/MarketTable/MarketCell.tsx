@@ -81,7 +81,7 @@ const MarketCell = memo(({
 
       const timer = setTimeout(() => {
         setFlashClass("");
-      }, 1500);
+      }, 500);
 
       prevValueRef.current = value;
       return () => clearTimeout(timer);

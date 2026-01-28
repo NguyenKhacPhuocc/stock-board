@@ -201,7 +201,7 @@ export const useMarketWebSocket = (exchange: string): void => {
       isConnectedRef.current = false;
       previousExchangeRef.current = null;
     };
-  }, [hasStocks]);
+  }, [hasStocks, exchange]);
 
   // Handle exchange changes
   useEffect(() => {

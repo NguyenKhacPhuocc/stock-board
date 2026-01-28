@@ -4,6 +4,8 @@ import type { StockInstrument } from "./marketTypes";
 
 export const selectMarketStocks = (state: RootState) => state.market.stocks;
 
+export const selectMarketAllQuotes = (state: RootState) => state.market.allQuotes;
+
 export const selectMarketEntities = (state: RootState) => state.market.entities;
 
 export const selectMarketLoading = (state: RootState) => state.market.loading;
@@ -33,6 +35,28 @@ export const selectAllQuotesArray = createSelector(
       exchange: quote.EX as StockInstrument["exchange"],
       StockType: quote.ST as string,
       FullName: quote.FN as string,
+      IssuerName: quote.IN as string,
+      RE: quote.RE as number,
+      CL: quote.CL as number,
+      FL: quote.FL as number,
+    } as StockInstrument));
+  }
+);
+
+/**
+ * Selector cho search - lấy allQuotes array (toàn bộ stocks từ tất cả sàn)
+ * Dùng cho autocomplete search
+ */
+export const selectSearchStocks = createSelector(
+  [selectAllQuotes],
+  (allQuotes): StockInstrument[] => {
+    return Array.from(allQuotes.values()).map(quote => ({
+      SB: quote.SB as string,
+      symbol: quote.SB as string,
+      exchange: quote.EX as StockInstrument["exchange"],
+      StockType: quote.ST as string,
+      FullName: quote.FN as string,
+      IssuerName: quote.IN as string,
       RE: quote.RE as number,
       CL: quote.CL as number,
       FL: quote.FL as number,

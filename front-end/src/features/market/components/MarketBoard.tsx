@@ -8,7 +8,6 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import {
   initializeMarket,
   loadExchangeStocks,
-  setSelectedExchange,
 } from '../marketSlice';
 import {
   selectSelectedExchange,
@@ -16,7 +15,7 @@ import {
 } from '../marketSelectors';
 import { useMarketWebSocket } from '../marketWs';
 
-import type { Logger, ExchangeType } from '../marketTypes';
+import type { Logger } from '../marketTypes';
 
 const logger: Logger = {
   debug: (msg: string, data?: unknown): void => {
@@ -54,18 +53,11 @@ export default function MarketBoard() {
     }
   }, [dispatch, selectedExchange, allQuotes]);
 
-  const handleExchangeChange = (exchange: ExchangeType) => {
-    logger.debug(`Changing exchange to ${exchange}`);
-    dispatch(setSelectedExchange(exchange));
-  };
 
   return (
     <div className={styles.marketBoard}>
       <div className={overviewStyles.marketBoardOverview}>
-        <MarketOverview
-          selectedExchange={selectedExchange}
-          onExchangeChange={handleExchangeChange}
-        />
+        <MarketOverview />
       </div>
       <div className={styles.marketBoardTable}>
         <MarketToolBar />

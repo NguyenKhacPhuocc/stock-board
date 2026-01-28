@@ -30,18 +30,14 @@ export const initializeMarket = createAsyncThunk(
     const logger = createLogger("MarketSlice");
 
     try {
-      logger.debug("Starting market initialization");
-
-      // Step 1: Fetch quotes (static info: symbol, ceiling, floor, reference)
-      logger.debug("Step 1: Fetching quotes");
       const allQuotes = await fetchAllQuotes();
-      logger.debug("Quotes loaded", { count: allQuotes.size });
-
-      // Step 2: Fetch instruments (real-time data: prices, volumes)
-      logger.debug(`Step 2: Fetching instruments for ${exchange}`);
       const stocks = await fetchAllExchangeStocks(exchange, allQuotes);
-      logger.debug(`Loaded ${stocks.length} stocks for ${exchange}`);
-
+      logger.debug("Market initialization failed", {
+        allQuotes,
+        stocks,
+        exchange,
+      });
+      
       return { allQuotes, stocks, exchange };
     } catch (error) {
       logger.error("Market initialization failed", error);

@@ -53,21 +53,16 @@ const MarketCell = memo(({
   isCalculated
 }: MarketCellProps) => {
   const reduxStock = useAppSelector(state => state.market.entities[symbol]);
-  const [data, setData] = useState<StockInstrument | undefined>(
-    reduxStock || marketCache.get(symbol)
+  const [cacheData, setCacheData] = useState<StockInstrument | undefined>(
+    () => reduxStock || marketCache.get(symbol)
   );
   const [flashClass, setFlashClass] = useState<string>("");
   const prevValueRef = useRef<FieldValue>(undefined);
-
-  useEffect(() => {
-    if (reduxStock) {
-      setData(reduxStock);
-    }
-  }, [reduxStock]);
+  const data = reduxStock || cacheData;
 
   useEffect(() => {
     const unsubscribe = marketCache.subscribe(symbol, (updatedStock) => {
-      setData((prev) => {
+      setCacheData((prev) => {
         if (!prev) return updatedStock;
 
         const valueChanged = getFieldValue(prev, field) !== getFieldValue(updatedStock, field);
@@ -96,20 +91,20 @@ const MarketCell = memo(({
   const colorPrice = colorSource ? getFieldValue(data, colorSource) as number | undefined : undefined;
 
   useEffect(() => {
-    const hasNoPreviousValue = prevValueRef.current === undefined;
-    const valueUnchanged = prevValueRef.current === value;
-    const noValue = value === undefined;
-
-    if (hasNoPreviousValue || valueUnchanged || noValue) {
+    if (value === undefined || value === null || prevValueRef.current === undefined || prevValueRef.current === value) {
       prevValueRef.current = value;
       return;
     }
 
     const newVal = Number(value) || 0;
     const flashColor = determineFlashColor(newVal, ref, ceil, flr, styles);
-    setFlashClass(flashColor);
-
     prevValueRef.current = value;
+
+    queueMicrotask(() => {
+      setFlashClass(flashColor);
+    });
+    const timer = setTimeout(() => setFlashClass(""), 1000);
+    return () => clearTimeout(timer);
   }, [value, ref, ceil, flr]);
 
   const colorClass = fixedColorClass || getColorClass(colorPrice, ref, ceil, flr);

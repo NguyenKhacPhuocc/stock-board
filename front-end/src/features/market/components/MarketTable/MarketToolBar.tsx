@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { ChevronDown, ChevronUp, Search, Settings, Video } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { setSelectedExchange, setSelectedType, setHighlightedSymbol } from "../../marketSlice";
-import { selectSelectedExchange, selectSelectedType, selectMarketStocks } from "../../marketSelectors";
+import { selectSelectedExchange, selectSelectedType, selectSearchStocks } from "../../marketSelectors";
 import type { StockInstrument, ExchangeType } from "../../marketTypes";
 import styles from "./MarketToolBar.module.scss";
 
@@ -49,8 +49,7 @@ export default function MarketToolBar() {
   const dispatch = useAppDispatch();
   const selectedExchange = useAppSelector(selectSelectedExchange);
   const selectedType = useAppSelector(selectSelectedType);
-  const allStocks = useAppSelector(selectMarketStocks);
-
+  const searchStocks = useAppSelector(selectSearchStocks);
   const [searchTerm, setSearchTerm] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -65,7 +64,7 @@ export default function MarketToolBar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const suggestions = filterStocks(allStocks, searchTerm);
+  const suggestions = filterStocks(searchStocks, searchTerm);
 
   const handleExchangeClick = (exchange: ExchangeType) => {
     dispatch(setSelectedExchange(exchange));

@@ -20,7 +20,7 @@ export class BSCFeed {
   private readonly maxReconnectDelay = 30000; // 30 seconds
   private reconnectTimer: NodeJS.Timeout | null = null;
   private isConnecting = false;
-  private subscribedSymbols: Set<string> = new Set();
+  private currentExchanges: Set<string> = new Set();
 
   constructor() {}
 
@@ -35,8 +35,10 @@ export class BSCFeed {
 
     this.bscSocket = ioClient(this.BSC_URL, {
       path: "/market/socket.io",
-      transports: ["websocket"],
-      reconnection: false, // We handle reconnection manually for more control
+      transports: ["websocket", "polling"], // Fallback to polling
+      reconnection: false, // Handle reconnection manually
+      timeout: 20000,
+      forceNew: true,
       query: {
         __sails_io_sdk_version: "1.2.1",
         __sails_io_sdk_platform: "browser",
@@ -50,27 +52,28 @@ export class BSCFeed {
       this.reconnectAttempts = 0;
       logger.debug("Connected to BSC successfully");
 
-      // Subscribe to default indices on connect
-      const defaultSymbols = [
+      // Subscribe to ALL indices once (they don't change)
+      const indexChannels = [
         "idx:HOSE",
         "idx:30",
-        "idx:HNX",
+        "idx:HNX", 
         "idx:HNX30",
-        "idx:UPCOM",
+        "idx:UPCOM"
       ];
-      this.subscribe(defaultSymbols);
+      
+      this.subscribe(indexChannels);
+      logger.debug("Subscribed to all market indices");
 
-      // Re-subscribe to previously subscribed symbols
-      if (this.subscribedSymbols.size > 0) {
-        const symbolsToResubscribe = Array.from(this.subscribedSymbols);
-        logger.debug("Re-subscribing to previous symbols", {
-          count: symbolsToResubscribe.length,
-        });
-        this.subscribe(symbolsToResubscribe);
+      // Re-subscribe to current exchange streams after reconnect
+      if (this.currentExchanges.size > 0) {
+        const exchanges = Array.from(this.currentExchanges);
+        logger.debug("Re-subscribing to exchange streams after reconnect", { exchanges });
+        this.subscribeToExchanges(exchanges);
       }
     });
 
     // Pass raw data to MarketService for state management
+    // MarketService will group data by exchange using symbol-exchange mapping
     this.bscSocket.on("i", (payload: any) => {
       marketService.onRawFeed(payload, "i");
     });
@@ -124,20 +127,13 @@ export class BSCFeed {
   }
 
   /**
-   * Dynamically subscribe to a list of symbols (e.g. ['i:FPT', 'idx:HOSE'])
+   * Generic subscribe method for any channels
    */
-  public subscribe(args: string[]) {
+  private subscribe(args: string[]) {
     if (!this.bscSocket || !this.bscSocket.connected) {
-      // Store symbols to subscribe when connected
-      args.forEach((s) => this.subscribedSymbols.add(s));
-      logger.debug("Socket not connected, queued symbols for subscription", {
-        count: args.length,
-      });
+      logger.debug("Socket not connected, skipping subscription");
       return;
     }
-
-    // Track subscribed symbols
-    args.forEach((s) => this.subscribedSymbols.add(s));
 
     const subscriptionData = {
       url: "/client/subscribe",
@@ -149,8 +145,107 @@ export class BSCFeed {
       },
     };
 
-    logger.debug(`Sending subscription for ${args.length} items`);
+    logger.debug(`Subscribing to ${args.length} channels`, args);
     this.bscSocket.emit("get", subscriptionData);
+  }
+
+  /**
+   * Subscribe to specific exchanges (HOSE, HNX, or UPCOM)
+   * Only subscribes to 'e:' channels (stock streams), not indices
+   */
+  public subscribeToExchanges(exchanges: string[]) {
+    if (!this.bscSocket || !this.bscSocket.connected) {
+      logger.debug("Socket not connected, queueing exchanges", { exchanges });
+      exchanges.forEach(ex => this.currentExchanges.add(ex));
+      return;
+    }
+
+    // Find which exchanges to unsubscribe and which to subscribe
+    const toUnsubscribe = Array.from(this.currentExchanges).filter(
+      ex => !exchanges.includes(ex)
+    );
+    const toSubscribe = exchanges.filter(
+      ex => !this.currentExchanges.has(ex)
+    );
+
+    // Unsubscribe from old exchanges (only e: channels)
+    if (toUnsubscribe.length > 0) {
+      const unsubArgs = toUnsubscribe.map(ex => `e:${ex}`);
+      
+      const unsubscribeData = {
+        url: "/client/subscribe",
+        method: "get",
+        headers: {},
+        data: {
+          op: "unsubscribe",
+          args: unsubArgs,
+        },
+      };
+
+      logger.debug(`Unsubscribing from exchanges: ${toUnsubscribe.join(', ')}`, { channels: unsubArgs });
+      this.bscSocket.emit("get", unsubscribeData);
+    }
+
+    // Subscribe to new exchanges (only e: channels)
+    if (toSubscribe.length > 0) {
+      const subArgs = toSubscribe.map(ex => `e:${ex}`);
+      
+      const subscriptionData = {
+        url: "/client/subscribe",
+        method: "get",
+        headers: {},
+        data: {
+          op: "subscribe",
+          args: subArgs,
+        },
+      };
+
+      logger.debug(`Subscribing to exchanges: ${toSubscribe.join(', ')}`, { channels: subArgs });
+      this.bscSocket.emit("get", subscriptionData);
+    }
+    
+    // Update current exchanges
+    this.currentExchanges.clear();
+    exchanges.forEach(ex => this.currentExchanges.add(ex));
+    
+    if (toUnsubscribe.length === 0 && toSubscribe.length === 0) {
+      logger.debug('Exchange subscriptions unchanged');
+    }
+  }
+
+  /**
+   * Unsubscribe from specific exchanges
+   * Note: Some WebSocket APIs may not support selective unsubscribe
+   */
+  public unsubscribeFromExchanges(exchanges: string[]) {
+    if (!this.bscSocket || !this.bscSocket.connected) {
+      logger.debug("Socket not connected, skipping unsubscribe");
+      return;
+    }
+
+    const args: string[] = [];
+    exchanges.forEach(ex => {
+      args.push(`e:${ex}`);
+      args.push(`idx:${ex}`);
+      if (ex === 'HOSE') args.push('idx:30');
+      if (ex === 'HNX') args.push('idx:HNX30');
+    });
+
+    const unsubscribeData = {
+      url: "/client/unsubscribe",
+      method: "get",
+      headers: {},
+      data: {
+        op: "unsubscribe",
+        args: args,
+      },
+    };
+
+    logger.debug(`Unsubscribing from exchanges: ${exchanges.join(', ')}`, { channels: args });
+    this.bscSocket.emit("get", unsubscribeData);
+    
+    // Remove from current exchanges
+    exchanges.forEach(ex => this.currentExchanges.delete(ex));
   }
 
   public disconnect() {

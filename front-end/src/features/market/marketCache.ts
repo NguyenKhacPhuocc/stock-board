@@ -20,10 +20,9 @@ class MarketCache {
       SB: symbol,
     } as StockInstrument;
 
-    // Recalculate CH and CHP if CP changed
-    if (updated.CP && updated.CP > 0 && updated.RE) {
-      updated.CH = updated.CP - updated.RE;
-      updated.CHP = (updated.CP - updated.RE) / updated.RE;
+    // CHP = (CH / RE) * 100
+    if (updated.CH !== undefined && updated.RE && updated.RE > 0) {
+      updated.CHP = (updated.CH / updated.RE) * 100;
     }
 
     this.entities[symbol] = updated;

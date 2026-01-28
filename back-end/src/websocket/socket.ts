@@ -40,7 +40,6 @@ const authMiddleware = (
       logger.debug("Invalid token provided, continuing as anonymous", {
         socketId: socket.id,
       });
-      // Don't reject - allow anonymous connections for market data
     }
   } else {
     logger.debug("No token provided, continuing as anonymous", {
@@ -61,60 +60,67 @@ const handleSocketConnection = (socket: AuthenticatedSocket) => {
     userId: socket.user?.userId,
   });
 
-  const snapshot = marketService.getSnapshot();
-  if (snapshot.length > 0) {
-    logger.debug("Sending initial snapshot to client", {
-      clientId,
-      symbolCount: snapshot.length,
-    });
-    socket.emit("i", { a: "u", d: snapshot });
-  }
-
-  socket.on("subscribe", (symbols: string[], ack?: (msg: any) => void) => {
-    if (!Array.isArray(symbols) || symbols.length === 0) {
-      logger.error("Invalid subscribe request", { clientId, symbols });
-      if (ack) ack({ status: "error", message: "Invalid symbols" });
+  socket.on("subscribe", (data: { exchange: string }, ack?: (msg: any) => void) => {
+    if (!data?.exchange) {
+      logger.error("Invalid subscribe request - missing exchange", { clientId, data });
+      if (ack) ack({ status: "error", message: "Exchange is required" });
       return;
     }
 
-    subscriptionManager.subscribe(clientId, symbols);
+    const exchange = data.exchange.toUpperCase();
+    const validExchanges = ['HOSE', 'HNX', 'UPCOM'];
+    
+    if (!validExchanges.includes(exchange)) {
+      logger.error("Invalid exchange", { clientId, exchange });
+      if (ack) ack({ status: "error", message: "Invalid exchange" });
+      return;
+    }
 
-    const displaySymbols =
-      symbols.slice(0, 5).join(", ") +
-      (symbols.length > 5 ? `... (+${symbols.length - 5} more)` : "");
-    logger.debug("Subscribe request processed", {
+    // Leave all previous exchange rooms
+    validExchanges.forEach(ex => {
+      socket.leave(`e:${ex}`);
+    });
+    
+    // Join new exchange room
+    socket.join(`e:${exchange}`);
+    
+    subscriptionManager.subscribeToExchange(clientId, exchange);
+
+    logger.debug("Exchange subscription processed", {
       clientId,
-      symbolCount: symbols.length,
-      symbols: displaySymbols,
+      exchange,
+      rooms: Array.from(socket.rooms),
     });
 
-    if (ack) ack({ status: "ok", subscribed: symbols.length });
+    if (ack) ack({ status: "ok", exchange });
   });
 
-  socket.on("unsubscribe", (symbols: string[], ack?: (msg: any) => void) => {
-    if (!Array.isArray(symbols) || symbols.length === 0) {
-      logger.error("Invalid unsubscribe request", { clientId, symbols });
-      if (ack) ack({ status: "error", message: "Invalid symbols" });
+  socket.on("unsubscribe", (data: { exchange: string }, ack?: (msg: any) => void) => {
+    if (!data?.exchange) {
+      logger.error("Invalid unsubscribe request", { clientId, data });
+      if (ack) ack({ status: "error", message: "Exchange is required" });
       return;
     }
 
-    subscriptionManager.unsubscribe(clientId, symbols);
+    const exchange = data.exchange.toUpperCase();
+    
+    // Leave exchange room
+    socket.leave(`e:${exchange}`);
+    
+    subscriptionManager.unsubscribeFromExchange(clientId, exchange);
 
-    const displaySymbols =
-      symbols.slice(0, 5).join(", ") +
-      (symbols.length > 5 ? `... (+${symbols.length - 5} more)` : "");
-    logger.debug("Unsubscribe request processed", {
+    logger.debug("Exchange unsubscription processed", {
       clientId,
-      symbolCount: symbols.length,
-      symbols: displaySymbols,
+      exchange,
+      rooms: Array.from(socket.rooms),
     });
 
-    if (ack) ack({ status: "ok", unsubscribed: symbols.length });
+    if (ack) ack({ status: "ok", exchange });
   });
 
   socket.on("disconnect", () => {
-    subscriptionManager.unsubscribeAll(clientId);
-    logger.debug("Client disconnected and cleaned up", { clientId });
+    logger.debug("Client disconnected", { clientId });
+    subscriptionManager.disconnect(clientId);
   });
 
   socket.on("error", (error: any) => {
@@ -134,7 +140,6 @@ export const initSocket = (server: HttpServer) => {
       methods: ["GET", "POST"],
       credentials: true,
     },
-    // Connection settings
     pingTimeout: 60000,
     pingInterval: 25000,
   });
@@ -146,20 +151,30 @@ export const initSocket = (server: HttpServer) => {
 
   bscFeed.connect();
 
-  marketService.on("i", (batch) => {
-    io.emit("i", { a: "u", d: batch });
+  marketService.on("i", (batch, exchange?: string) => {
+    // If exchange info available, emit to specific room only
+    if (exchange) {
+      const room = `e:${exchange}`;
+      const roomSockets = io.sockets.adapter.rooms.get(room);
+      const socketCount = roomSockets ? roomSockets.size : 0;
+      
+      if (socketCount > 0) {
+        io.to(room).emit("i", { a: "u", d: batch });
+        logger.debug(`Emitted ${batch.length} stocks to room ${room} (${socketCount} clients)`);
+      }
+    } else {
+      // Fallback: broadcast to all (for unknown symbols)
+      logger.debug(`No exchange info, broadcasting ${batch.length} stocks to all`);
+      io.emit("i", { a: "u", d: batch });
+    }
   });
 
   marketService.on("idx", (batch) => {
+    // Indices are broadcast to everyone
     io.emit("idx", { a: "u", d: batch });
   });
 
   io.on("connection", handleSocketConnection);
-
-  setInterval(() => {
-    const metrics = subscriptionManager.getMetrics();
-    logger.debug("Subscription metrics", metrics);
-  }, 60000);
 
   return io;
 };

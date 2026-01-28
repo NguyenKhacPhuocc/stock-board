@@ -38,7 +38,8 @@ const logger: Logger = {
 };
 
 const extractSymbols = (stocks: StockInstrument[]): string[] => {
-  return stocks.map((s) => `i:${s.SB}`);
+  // No longer need to add 'i:' prefix since backend subscribes to entire exchanges
+  return stocks.map((s) => s.SB);
 };
 
 const isValidUpdate = (payload: any): payload is WSUpdatePayload => {
@@ -51,75 +52,50 @@ const createSocket = (): Socket => {
   return socket;
 };
 
-const subscribeToSymbols = (socket: Socket, symbols: string[]): void => {
+const subscribeToExchange = (socket: Socket, exchange: string): void => {
   if (!socket.connected) {
     logger.debug("Socket not connected, skipping subscription");
     return;
   }
 
-  if (symbols.length === 0) {
-    logger.debug("No symbols to subscribe");
-    return;
-  }
-
-  const displaySymbols = symbols
-    .slice(0, 5)
-    .map((s) => s.replace("i:", ""))
-    .join(", ");
-  const suffix = symbols.length > 5 ? `... (+${symbols.length - 5} more)` : "";
-
-  logger.debug(
-    `Subscribing to ${symbols.length} symbols: ${displaySymbols}${suffix}`,
-  );
-  socket.emit("subscribe", symbols, (ack: any) => {
-    logger.debug("Subscription acknowledged by server", { ack });
+  logger.debug(`Subscribing to exchange: ${exchange}`);
+  socket.emit("subscribe", { exchange }, (ack: any) => {
+    logger.debug("Exchange subscription acknowledged", { ack, exchange });
   });
 };
 
-const unsubscribeFromSymbols = (socket: Socket, symbols: string[]): void => {
+const unsubscribeFromExchange = (socket: Socket, exchange: string): void => {
   if (!socket.connected) {
     logger.debug("Socket not connected, skipping unsubscription");
     return;
   }
 
-  if (symbols.length === 0) {
-    logger.debug("No symbols to unsubscribe");
-    return;
-  }
-
-  const displaySymbols = symbols
-    .slice(0, 5)
-    .map((s) => s.replace("i:", ""))
-    .join(", ");
-  const suffix = symbols.length > 5 ? `... (+${symbols.length - 5} more)` : "";
-
-  logger.debug(
-    `Unsubscribing from ${symbols.length} symbols: ${displaySymbols}${suffix}`,
-  );
-  socket.emit("unsubscribe", symbols, (ack: any) => {
-    logger.debug("Unsubscription acknowledged by server", { ack });
+  logger.debug(`Unsubscribing from exchange: ${exchange}`);
+  socket.emit("unsubscribe", { exchange }, (ack: any) => {
+    logger.debug("Exchange unsubscription acknowledged", { ack, exchange });
   });
 };
 
-const handleMarketUpdate = (payload: any, dispatch: AppDispatch): void => {
+const handleMarketUpdate = (
+  payload: any,
+  dispatch: AppDispatch,
+  currentSymbols: Set<string>,
+): void => {
   if (!isValidUpdate(payload)) {
     logger.error("Invalid update payload", payload);
     return;
   }
 
-  const batch = payload.d.filter((item: any) => !!item.SB);
+  // Filter: Only update stocks that are in current exchange/view
+  const batch = payload.d.filter(
+    (item: any) => item.SB && currentSymbols.has(item.SB),
+  );
 
   if (batch.length === 0) return;
 
   marketCache.batchUpdate(batch);
   dispatch(batchUpdateStocks(batch));
 
-  logger.debug(`Updated ${batch.length} stocks`, {
-    samples: batch
-      .slice(0, 3)
-      .map((s) => s.SB)
-      .join(", "),
-  });
 };
 
 interface SocketHandlers {
@@ -143,30 +119,27 @@ const setupSocketHandlers = (
   socket.on("idx", handlers.onUpdate);
 };
 
-const getSymbolsDiff = (
-  prev: string[],
-  current: string[],
-): { toAdd: string[]; toRemove: string[] } => {
-  const prevSet = new Set(prev);
-  const currSet = new Set(current);
-
-  const toAdd = current.filter((s) => !prevSet.has(s));
-  const toRemove = prev.filter((s) => !currSet.has(s));
-
-  return { toAdd, toRemove };
-};
-
 export const useMarketWebSocket = (exchange: string): void => {
   const dispatch = useAppDispatch();
   const socketRef = useRef<Socket | null>(null);
   const stocks = useAppSelector(selectMarketStocks);
-  const previousSymbolsRef = useRef<string[]>([]);
+  const previousExchangeRef = useRef<string | null>(null);
   const isConnectedRef = useRef(false);
   const dispatchRef = useRef(dispatch);
-  const symbolsRef = useRef<string[]>([]);
+  const symbolsSetRef = useRef<Set<string>>(new Set());
+  const pendingExchangeRef = useRef<string | null>(null);
 
   const symbols = useMemo(() => extractSymbols(stocks), [stocks]);
+  const symbolsSet = useMemo(() => new Set(symbols), [symbols]);
   const hasStocks = stocks.length > 0;
+  
+  // Get exchange from first stock (if available) to know which exchange data is loaded
+  const loadedExchange = useMemo(() => {
+    if (stocks.length > 0 && stocks[0].exchange) {
+      return stocks[0].exchange;
+    }
+    return null;
+  }, [stocks]);
 
   // Keep refs in sync via effect
   useEffect(() => {
@@ -174,8 +147,8 @@ export const useMarketWebSocket = (exchange: string): void => {
   }, [dispatch]);
 
   useEffect(() => {
-    symbolsRef.current = symbols;
-  }, [symbols]);
+    symbolsSetRef.current = symbolsSet;
+  }, [symbolsSet]);
 
   // Setup socket connection once when stocks are loaded
   useEffect(() => {
@@ -184,11 +157,13 @@ export const useMarketWebSocket = (exchange: string): void => {
       return;
     }
 
-    // Don't create new socket if already connected
-    if (socketRef.current?.connected) {
+    // Don't create new socket if already exists
+    if (socketRef.current) {
+      logger.debug("Socket already exists, reusing connection");
       return;
     }
 
+    logger.debug("Creating new socket connection");
     const socket = createSocket();
     socketRef.current = socket;
 
@@ -196,10 +171,9 @@ export const useMarketWebSocket = (exchange: string): void => {
       onConnect: () => {
         logger.debug("Connected to backend", { socketId: socket.id });
         isConnectedRef.current = true;
-        // Subscribe to current symbols on connect
-        const currentSymbols = symbolsRef.current;
-        subscribeToSymbols(socket, currentSymbols);
-        previousSymbolsRef.current = [...currentSymbols];
+        // Subscribe to current exchange on connect
+        subscribeToExchange(socket, exchange);
+        previousExchangeRef.current = exchange;
       },
       onDisconnect: (reason: string) => {
         logger.debug("Disconnected from backend", { reason });
@@ -210,69 +184,72 @@ export const useMarketWebSocket = (exchange: string): void => {
         isConnectedRef.current = false;
       },
       onUpdate: (payload: unknown) => {
-        handleMarketUpdate(payload, dispatchRef.current);
+        handleMarketUpdate(payload, dispatchRef.current, symbolsSetRef.current);
       },
     };
 
     setupSocketHandlers(socket, handlers);
 
+    // Cleanup only when component unmounts or stocks cleared
     return () => {
-      if (socket.connected) {
-        logger.debug("Cleaning up socket connection");
-        unsubscribeFromSymbols(socket, previousSymbolsRef.current);
+      logger.debug("Component unmounting - cleaning up socket");
+      if (socket.connected && previousExchangeRef.current) {
+        unsubscribeFromExchange(socket, previousExchangeRef.current);
         socket.disconnect();
       }
       socketRef.current = null;
       isConnectedRef.current = false;
-      previousSymbolsRef.current = [];
+      previousExchangeRef.current = null;
     };
   }, [hasStocks]);
 
-  // Handle symbol changes (including exchange changes)
+  // Handle exchange changes
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket?.connected || !isConnectedRef.current) {
+      logger.debug("Socket not ready for exchange switch", { 
+        hasSocket: !!socket, 
+        connected: socket?.connected,
+        isConnected: isConnectedRef.current 
+      });
+      // Store pending exchange to handle when socket connects
+      pendingExchangeRef.current = exchange;
       return;
     }
 
-    const { toAdd, toRemove } = getSymbolsDiff(
-      previousSymbolsRef.current,
-      symbols,
-    );
-
-    // Only unsubscribe/subscribe if there are actual changes
-    if (toRemove.length === 0 && toAdd.length === 0) {
+    const previousExchange = previousExchangeRef.current;
+    
+    // Check if stocks data is loaded for the target exchange
+    if (loadedExchange && loadedExchange !== exchange) {
+      logger.debug(`Waiting for stocks data to load for ${exchange} (currently: ${loadedExchange})`);
+      pendingExchangeRef.current = exchange;
       return;
     }
-
-    logger.debug(`Symbol subscription update for ${exchange}`, {
-      toRemove: toRemove.length,
-      toAdd: toAdd.length,
-    });
-
-    // Unsubscribe first, then subscribe
-    if (toRemove.length > 0) {
-      logger.debug(`Unsubscribing ${toRemove.length} symbols`, {
-        samples: toRemove
-          .slice(0, 3)
-          .map((s) => s.replace("i:", ""))
-          .join(", "),
-      });
-      unsubscribeFromSymbols(socket, toRemove);
+    
+    // If exchange changed, switch subscription
+    if (previousExchange && previousExchange !== exchange) {
+      logger.debug(
+        `Switching exchange from ${previousExchange} to ${exchange}`,
+        { socketId: socket.id, loadedExchange, symbolsCount: symbolsSet.size }
+      );
+      
+      // Unsubscribe from old exchange
+      unsubscribeFromExchange(socket, previousExchange);
+      
+      // Subscribe to new exchange
+      subscribeToExchange(socket, exchange);
+      
+      previousExchangeRef.current = exchange;
+      pendingExchangeRef.current = null;
+    } else if (!previousExchange) {
+      // First time - just set the ref
+      logger.debug(`Setting initial exchange: ${exchange}`);
+      previousExchangeRef.current = exchange;
     }
-
-    if (toAdd.length > 0) {
-      logger.debug(`Subscribing ${toAdd.length} symbols`, {
-        samples: toAdd
-          .slice(0, 3)
-          .map((s) => s.replace("i:", ""))
-          .join(", "),
-      });
-      subscribeToSymbols(socket, toAdd);
-    }
-
-    previousSymbolsRef.current = [...symbols];
-  }, [symbols, exchange]);
+    
+    // Update symbolsSet for filtering
+    symbolsSetRef.current = symbolsSet;
+  }, [exchange, symbolsSet, loadedExchange]);
 };
 
 export const MarketWS = useMarketWebSocket;

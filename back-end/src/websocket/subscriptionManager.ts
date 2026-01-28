@@ -1,13 +1,14 @@
 import { bscFeed } from '../feeds/bsc.feed';
 
 interface ClientSubscription {
-  clientId: string;
-  symbols: Set<string>;
+  exchange: string | null;
 }
 
 class SubscriptionManager {
-  private clientSubscriptions = new Map<string, ClientSubscription>();
-  private symbolSubscribers = new Map<string, Set<string>>();
+  private clientSubscriptions: Map<string, ClientSubscription> = new Map();
+  private exchangeSubscribers: Map<string, Set<string>> = new Map();
+  private currentBSCExchanges: Set<string> = new Set();
+
   private logger = {
     debug: (msg: string, data?: any) => {
       console.log(`[SubscriptionManager] ${msg}`, data || '');
@@ -17,130 +18,114 @@ class SubscriptionManager {
     },
   };
 
-  subscribe(clientId: string, symbols: string[]): void {
-    if (!Array.isArray(symbols) || symbols.length === 0) {
-      this.logger.debug('Empty symbols list, skipping subscription', { clientId });
-      return;
-    }
+  subscribeToExchange(clientId: string, exchange: string): void {
+    let client = this.clientSubscriptions.get(clientId);
+    const previousExchange = client?.exchange;
 
-    const validSymbols = symbols.filter(s => typeof s === 'string' && s.length > 0);
-    if (validSymbols.length === 0) {
-      this.logger.error('No valid symbols provided', { clientId, symbols });
-      return;
-    }
-
-    const client = this.clientSubscriptions.get(clientId) || {
-      clientId,
-      symbols: new Set(),
-    };
-
-    const newSymbols: string[] = [];
-
-    validSymbols.forEach(symbol => {
-      if (!client.symbols.has(symbol)) {
-        client.symbols.add(symbol);
-        newSymbols.push(symbol);
-
-        if (!this.symbolSubscribers.has(symbol)) {
-          this.symbolSubscribers.set(symbol, new Set());
-        }
-        this.symbolSubscribers.get(symbol)!.add(clientId);
-      }
-    });
-
-    this.clientSubscriptions.set(clientId, client);
-
-    if (newSymbols.length > 0) {
-      const displaySymbols = newSymbols.slice(0, 5).join(', ') +
-        (newSymbols.length > 5 ? `... (+${newSymbols.length - 5} more)` : '');
-      this.logger.debug(`Client subscribed to ${newSymbols.length} new symbols`, {
-        clientId,
-        symbols: displaySymbols,
+    // Unsubscribe from previous exchange if different
+    if (previousExchange && previousExchange !== exchange) {
+      this.logger.debug('Client switching exchanges', { 
+        clientId, 
+        from: previousExchange, 
+        to: exchange 
       });
-
-      bscFeed.subscribe(newSymbols);
-    } else {
-      this.logger.debug('Client already subscribed to all symbols', { clientId });
+      this.unsubscribeFromExchange(clientId, previousExchange);
     }
+
+    // Update client subscription
+    if (!client) {
+      client = { exchange: null };
+      this.clientSubscriptions.set(clientId, client);
+    }
+    client.exchange = exchange;
+
+    // Track exchange subscribers
+    if (!this.exchangeSubscribers.has(exchange)) {
+      this.exchangeSubscribers.set(exchange, new Set());
+    }
+    this.exchangeSubscribers.get(exchange)!.add(clientId);
+
+    this.logger.debug('Client subscribed to exchange', { clientId, exchange });
+
+    // Check if this is the first subscriber to this exchange
+    this.updateBSCSubscription();
   }
 
-  unsubscribe(clientId: string, symbols: string[]): void {
+  unsubscribeFromExchange(clientId: string, exchange: string): void {
     const client = this.clientSubscriptions.get(clientId);
     if (!client) {
       this.logger.debug('Client not found, skipping unsubscription', { clientId });
       return;
     }
 
-    const removedSymbols: string[] = [];
-
-    symbols.forEach(symbol => {
-      if (client.symbols.has(symbol)) {
-        client.symbols.delete(symbol);
-        removedSymbols.push(symbol);
-
-        const subscribers = this.symbolSubscribers.get(symbol);
-        if (subscribers) {
-          subscribers.delete(clientId);
-
-          if (subscribers.size === 0) {
-            this.symbolSubscribers.delete(symbol);
-            this.logger.debug(`No more subscribers for symbol, can unsubscribe from BSC`, {
-              symbol,
-            });
-          }
-        }
+    // Remove from exchange subscribers
+    const subscribers = this.exchangeSubscribers.get(exchange);
+    if (subscribers) {
+      subscribers.delete(clientId);
+      if (subscribers.size === 0) {
+        this.exchangeSubscribers.delete(exchange);
       }
-    });
-
-    if (removedSymbols.length > 0) {
-      const displaySymbols = removedSymbols.slice(0, 5).join(', ') +
-        (removedSymbols.length > 5 ? `... (+${removedSymbols.length - 5} more)` : '');
-      this.logger.debug(`Client unsubscribed from ${removedSymbols.length} symbols`, {
-        clientId,
-        symbols: displaySymbols,
-      });
     }
 
-    if (client.symbols.size === 0) {
-      this.clientSubscriptions.delete(clientId);
-      this.logger.debug('Client removed (no more subscriptions)', { clientId });
+    // Clear client's exchange
+    if (client.exchange === exchange) {
+      client.exchange = null;
     }
+
+    this.logger.debug('Client unsubscribed from exchange', { clientId, exchange });
+
+    // Update BSC subscription if no more clients for this exchange
+    this.updateBSCSubscription();
   }
 
-  unsubscribeAll(clientId: string): void {
+  disconnect(clientId: string): void {
     const client = this.clientSubscriptions.get(clientId);
     if (!client) {
-      this.logger.debug('Client not found, nothing to clean up', { clientId });
       return;
     }
 
-    const allSymbols = Array.from(client.symbols);
-    this.logger.debug(`Unsubscribing client from all ${allSymbols.length} symbols`, {
-      clientId,
-    });
+    // Unsubscribe from exchange
+    if (client.exchange) {
+      this.unsubscribeFromExchange(clientId, client.exchange);
+    }
 
-    this.unsubscribe(clientId, allSymbols);
+    this.clientSubscriptions.delete(clientId);
+    this.logger.debug('Client disconnected and cleaned up', { clientId });
+
+    // Update BSC subscription
+    this.updateBSCSubscription();
   }
 
-  getClientSubscriptions(clientId: string): string[] {
-    const client = this.clientSubscriptions.get(clientId);
-    return client ? Array.from(client.symbols) : [];
-  }
-
-  getSymbolSubscribers(symbol: string): string[] {
-    const subscribers = this.symbolSubscribers.get(symbol);
-    return subscribers ? Array.from(subscribers) : [];
-  }
-
-  getMetrics() {
-    return {
-      totalClients: this.clientSubscriptions.size,
-      totalSymbols: this.symbolSubscribers.size,
-      clientBreakdown: Array.from(this.clientSubscriptions.values()).map(client => ({
-        clientId: client.clientId,
-        subscriptionCount: client.symbols.size,
-      })),
-    };
+  private updateBSCSubscription(): void {
+    const activeExchanges = Array.from(this.exchangeSubscribers.keys());
+    
+    // Check if subscription changed
+    const currentArray = Array.from(this.currentBSCExchanges).sort();
+    const activeArray = [...activeExchanges].sort();
+    const hasChanged = JSON.stringify(currentArray) !== JSON.stringify(activeArray);
+    
+    if (!hasChanged) {
+      this.logger.debug('BSC subscriptions unchanged', { 
+        current: currentArray 
+      });
+      return;
+    }
+    
+    // Update subscription (this will automatically unsubscribe old and subscribe new)
+    if (activeExchanges.length > 0) {
+      this.logger.debug('Updating BSC subscriptions', { 
+        from: currentArray,
+        to: activeArray
+      });
+      bscFeed.subscribeToExchanges(activeExchanges);
+      this.currentBSCExchanges = new Set(activeExchanges);
+    } else {
+      this.logger.debug('No active exchanges - unsubscribing all');
+      if (this.currentBSCExchanges.size > 0) {
+        bscFeed.unsubscribeFromExchanges(Array.from(this.currentBSCExchanges));
+        this.currentBSCExchanges.clear();
+      }
+    }
   }
 }
 

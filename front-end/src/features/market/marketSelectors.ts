@@ -24,6 +24,22 @@ export const selectHighlightedSymbol = (state: RootState) =>
 
 export const selectAllQuotes = (state: RootState) => state.market.allQuotes;
 
+export const selectAllQuotesArray = createSelector(
+  [selectAllQuotes],
+  (allQuotes): StockInstrument[] => {
+    return Array.from(allQuotes.values()).map(quote => ({
+      SB: quote.SB as string,
+      symbol: quote.SB as string,
+      exchange: quote.EX as StockInstrument["exchange"],
+      StockType: quote.ST as string,
+      FullName: quote.FN as string,
+      RE: quote.RE as number,
+      CL: quote.CL as number,
+      FL: quote.FL as number,
+    } as StockInstrument));
+  }
+);
+
 export const selectFilteredStocks = createSelector(
   [selectMarketStocks, selectSelectedType],
   (stocks, selectedType): StockInstrument[] => {

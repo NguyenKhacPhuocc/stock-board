@@ -6,7 +6,6 @@ import { marketCache } from "../../marketCache";
 import type { StockInstrument, CellType, FieldValue, MarketCellProps } from "../../marketTypes";
 import styles from "./MarketCell.module.scss";
 
-const FLASH_DURATION = 500;
 
 function getFieldValue(data: StockInstrument | undefined, field: string): FieldValue {
   if (!data) return undefined;
@@ -110,12 +109,7 @@ const MarketCell = memo(({
     const flashColor = determineFlashColor(newVal, ref, ceil, flr, styles);
     setFlashClass(flashColor);
 
-    const timer = setTimeout(() => {
-      setFlashClass("");
-    }, FLASH_DURATION);
-
     prevValueRef.current = value;
-    return () => clearTimeout(timer);
   }, [value, ref, ceil, flr]);
 
   const colorClass = fixedColorClass || getColorClass(colorPrice, ref, ceil, flr);

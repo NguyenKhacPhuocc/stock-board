@@ -40,41 +40,51 @@
 }
 
 @keyframes flashUp {
-  0% {
-    background-color: rgba(0, 255, 0, 0.5);
-  }
-
-  100% {
-    background-color: transparent;
+  0%, 100% {
+    background-color: rgba($color-up, 0.4);
   }
 }
 
 @keyframes flashDown {
-  0% {
-    background-color: rgba(255, 0, 0, 0.5);
+  0%, 100% {
+    background-color: rgba($color-down, 0.4);
   }
+}
 
-  100% {
-    background-color: transparent;
+@keyframes flashRef {
+  0%, 100% {
+    background-color: rgba($color-ref, 0.4);
+  }
+}
+
+@keyframes flashCeiling {
+  0%, 100% {
+    background-color: rgba($color-ceil, 0.4);
+  }
+}
+
+@keyframes flashFloor {
+  0%, 100% {
+    background-color: rgba($color-floor, 0.4);
   }
 }
 
 .flashUp {
-  background-color: rgba($color-up, 0.4) !important;
+  animation: flashUp 1s linear;
 }
 
 .flashDown {
-  background-color: rgba($color-down, 0.4) !important;
+  animation: flashDown 1s linear;
 }
 
 .flashRef {
-  background-color: rgba($color-ref, 0.4) !important;
+  animation: flashRef 1s linear;
 }
 
 .flashCeiling {
-  background-color: rgba($color-ceil, 0.4) !important;
+  animation: flashCeiling 1s linear;
 }
 
 .flashFloor {
-  background-color: rgba($color-floor, 0.4) !important;
+  animation: flashFloor 1s linear;
 }

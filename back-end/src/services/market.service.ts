@@ -1,4 +1,5 @@
 import EventEmitter from "events";
+import axios from "axios";
 import type {
   BSCFeedPayload,
   MarketEventType,
@@ -16,13 +17,71 @@ const logger = {
   },
 };
 
+const BSC_API_URL = process.env.BSC_API_URL || "https://priceapi.bsc.com.vn";
+const EXCHANGES = ["HOSE", "HNX", "UPCOM"];
+
 class MarketService extends EventEmitter {
   private marketMap = new Map<string, MarketSnapshotItem>();
   private lastUpdateTime = new Map<string, number>();
+  private symbolExchangeMap = new Map<string, string>();
 
   constructor() {
     super();
     this.setMaxListeners(20); // Prevent memory leak warnings
+  }
+
+  /**
+   * Set exchange mapping for a symbol
+   */
+  public setSymbolExchange(symbol: string, exchange: string): void {
+    this.symbolExchangeMap.set(symbol, exchange);
+  }
+
+  /**
+   * Get exchange for a symbol (returns undefined if not known)
+   */
+  public getSymbolExchange(symbol: string): string | undefined {
+    return this.symbolExchangeMap.get(symbol);
+  }
+
+  /**
+   * Load symbol-exchange mapping from BSC API
+   * Should be called once on server startup
+   */
+  public async loadSymbolExchangeMapping(): Promise<void> {
+    logger.debug("Loading symbol-exchange mapping from BSC API");
+    
+    const promises = EXCHANGES.map(async (exchange) => {
+      try {
+        const response = await axios.get(
+          `${BSC_API_URL}/datafeed/instruments?exchange=${exchange}`,
+          { timeout: 10000 }
+        );
+        
+        let instruments: any[] = [];
+        if (Array.isArray(response.data)) {
+          instruments = response.data;
+        } else if (response.data?.d && Array.isArray(response.data.d)) {
+          instruments = response.data.d;
+        }
+        
+        instruments.forEach((item: any) => {
+          const symbol = item.symbol || item.SB;
+          if (symbol) {
+            this.symbolExchangeMap.set(symbol, exchange);
+          }
+        });
+        
+        logger.debug(`Loaded ${instruments.length} symbols for ${exchange}`);
+        return instruments.length;
+      } catch (error: any) {
+        logger.error(`Failed to load symbols for ${exchange}`, error.message);
+        return 0;
+      }
+    });
+    
+    await Promise.all(promises);
+    logger.debug(`Total symbol mappings loaded: ${this.symbolExchangeMap.size}`);
   }
 
   /**
@@ -34,28 +93,41 @@ class MarketService extends EventEmitter {
 
   /**
    * Process raw data from BSC feed
+   * Groups data by exchange and emits separately for each exchange room
    */
   public onRawFeed(payload: BSCFeedPayload, type: MarketEventType = "i"): void {
     if (payload?.a !== "u" || !Array.isArray(payload.d)) {
       return;
     }
 
-    const batch: MarketSnapshotItem[] = [];
     const now = Date.now();
+    // Group items by exchange
+    const exchangeBatches = new Map<string, MarketSnapshotItem[]>();
 
     payload.d.forEach((item: any) => {
       const symbol = this.extractSymbol(item);
       if (!symbol) return;
 
-      // Cache latest state with raw BSC format
+      // Cache latest state
       this.marketMap.set(symbol, item);
       this.lastUpdateTime.set(symbol, now);
-      batch.push(item);
+
+      // Lookup exchange for this symbol
+      const exchange = this.symbolExchangeMap.get(symbol);
+      if (exchange) {
+        if (!exchangeBatches.has(exchange)) {
+          exchangeBatches.set(exchange, []);
+        }
+        exchangeBatches.get(exchange)!.push(item);
+      }
     });
 
-    if (batch.length > 0) {
-      this.emit(type, batch);
-    }
+    // Emit separately for each exchange
+    exchangeBatches.forEach((batch, exchange) => {
+      if (batch.length > 0) {
+        this.emit(type, batch, exchange);
+      }
+    });
   }
 
   /**

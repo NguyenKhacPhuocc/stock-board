@@ -34,3 +34,6 @@ Performance and safety:
 General constraints:
 - Do not introduce new dependencies unless explicitly requested
 - Follow existing project patterns and conventions
+
+Always respond in Vietnamese.
+---

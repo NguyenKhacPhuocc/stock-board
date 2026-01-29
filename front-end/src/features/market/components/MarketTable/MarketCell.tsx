@@ -42,6 +42,13 @@ function formatCellValue(value: FieldValue, type: CellType): string {
   }
 }
 
+// Helper: get value for comparison (used in color detection & flash)
+function getCompareValue(colorPrice: number | undefined, value: FieldValue): number | undefined {
+  if (colorPrice !== undefined) return colorPrice;
+  if (value !== undefined) return Number(value);
+  return undefined;
+}
+
 const MarketCell = memo(({
   symbol,
   field,
@@ -51,47 +58,87 @@ const MarketCell = memo(({
   colorField,
   isCalculated
 }: MarketCellProps) => {
-  const reduxStock = useAppSelector(state => state.market.entities[symbol]);
+  const { value, ref, ceil, flr, colorPrice } = useAppSelector((state) => {
+    const stock = state.market.entities[symbol];
+    const dataValue = stock
+      ? isCalculated
+        ? (stock.CP ? (getFieldValue(stock, field) ?? 0) : undefined)
+        : getFieldValue(stock, field)
+      : undefined;
+    const colorSource = colorField || (type === "price" ? field : undefined);
+    const cPrice = colorSource ? getFieldValue(stock, colorSource) as number | undefined : undefined;
+    return {
+      value: dataValue,
+      ref: stock?.RE || 0,
+      ceil: stock?.CL || 0,
+      flr: stock?.FL || 0,
+      colorPrice: cPrice,
+    };
+  }, (prev, next) => {
+    // Stable selector: prevent re-render if all values are equal
+    return (
+      prev.value === next.value &&
+      prev.ref === next.ref &&
+      prev.ceil === next.ceil &&
+      prev.flr === next.flr &&
+      prev.colorPrice === next.colorPrice
+    );
+  });
+
   const [flashClass, setFlashClass] = useState<string>("");
-  const prevValueRef = useRef<FieldValue>(undefined);
-  const data = reduxStock;
-
-  const value = data
-    ? isCalculated
-      ? (data.CP ? (getFieldValue(data, field) ?? 0) : undefined)
-      : getFieldValue(data, field)
-    : undefined;
-
-  const ref = data?.RE || 0;
-  const ceil = data?.CL || 0;
-  const flr = data?.FL || 0;
-  const colorSource = colorField || (type === "price" ? field : undefined);
-  const colorPrice = colorSource ? getFieldValue(data, colorSource) as number | undefined : undefined;
+  const prevValueRef = useRef<number | undefined>(undefined);
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstEffectRef = useRef(true);
 
   useEffect(() => {
-    if (value === undefined || value === null || prevValueRef.current === undefined || prevValueRef.current === value) {
-      prevValueRef.current = value;
+    const compareValue = getCompareValue(colorPrice, value);
+
+    // On first effect render, set initial value and skip flash
+    if (isFirstEffectRef.current) {
+      prevValueRef.current = compareValue;
+      isFirstEffectRef.current = false;
       return;
     }
 
-    const newVal = Number(value) || 0;
-    const flashColor = determineFlashColor(newVal, ref, ceil, flr, styles);
-    prevValueRef.current = value;
+    // Skip if value hasn't actually changed
+    if (compareValue === undefined || prevValueRef.current === compareValue) {
+      prevValueRef.current = compareValue;
+      return;
+    }
 
-    queueMicrotask(() => {
-      setFlashClass(flashColor);
-    });
-    const timer = setTimeout(() => setFlashClass(""), 1000);
-    return () => clearTimeout(timer);
-  }, [value, ref, ceil, flr]);
+    // Value changed - trigger highlight
+    prevValueRef.current = compareValue;
+
+    // Determine flash color and trigger animation
+    const flashColor = determineFlashColor(compareValue, ref, ceil, flr, styles);
+
+    // Clear any existing timeout
+    if (flashTimeoutRef.current) {
+      clearTimeout(flashTimeoutRef.current);
+    }
+
+    // Trigger CSS animation via RAF
+    requestAnimationFrame(() => setFlashClass(flashColor));
+
+    flashTimeoutRef.current = setTimeout(() => {
+      setFlashClass("");
+    }, 1000);
+
+    return () => {
+      if (flashTimeoutRef.current) {
+        clearTimeout(flashTimeoutRef.current);
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colorPrice, value]);
 
   const colorClass = fixedColorClass || getColorClass(colorPrice, ref, ceil, flr);
   const formattedValue = formatCellValue(value, type);
 
   return (
-    <td className={clsx(className, colorClass, flashClass)}>
+    <div className={clsx(styles.cell, className, colorClass, flashClass)}>
       {formattedValue}
-    </td>
+    </div>
   );
 });
 

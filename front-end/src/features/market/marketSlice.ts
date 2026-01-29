@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
-import { fetchAllQuotes, fetchAllExchangeStocks } from "./marketApi";
+import { fetchAllQuotes, fetchInstrumentsByExchange } from "./marketApi";
 import type {
   StockInstrument,
   MarketState,
@@ -31,7 +31,7 @@ export const initializeMarket = createAsyncThunk(
 
     try {
       const allQuotes = await fetchAllQuotes();
-      const stocks = await fetchAllExchangeStocks(exchange, allQuotes);
+      const stocks = await fetchInstrumentsByExchange(exchange, allQuotes);
       logger.debug("Market initialization failed", {
         allQuotes,
         stocks,
@@ -59,7 +59,7 @@ export const loadExchangeStocks = createAsyncThunk(
 
     try {
       logger.debug(`Loading stocks for exchange: ${exchange}`);
-      const stocks = await fetchAllExchangeStocks(exchange, quoteData);
+      const stocks = await fetchInstrumentsByExchange(exchange, quoteData);
       logger.debug(`Loaded ${stocks.length} stocks for ${exchange}`);
       return { exchange, stocks };
     } catch (error) {

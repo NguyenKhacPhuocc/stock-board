@@ -1,6 +1,22 @@
 @use "@/styles/variables.scss" as *;
 
 // Helper classes for table cells
+.cell {
+  border-right: 1px solid $border-color;
+  border-bottom: 1px solid $border-color;
+  padding: 4px 4px;
+  text-align: right;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 1.4;
+  font-size: 11px;
+}
+
 .iconPin {
   width: 16px;
   height: 16px;

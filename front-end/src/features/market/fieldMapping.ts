@@ -127,12 +127,12 @@ export const normalizeInstrumentData = (
  * WebSocket data already uses short names, just pass through
  * but ensure we handle any edge cases
  */
-export const normalizeWsData = (
-  raw: Record<string, unknown>,
-): Record<string, unknown> => {
-  // WS data already in short format, just return as-is
-  return raw;
-};
+// export const normalizeWsData = (
+//   raw: Record<string, unknown>,
+// ): Record<string, unknown> => {
+//   // WS data already in short format, just return as-is
+//   return raw;
+// };
 
 /**
  * Merge two stock records, with newer data taking precedence

@@ -19,10 +19,6 @@ import type {
   Logger,
 } from "./marketTypes";
 
-// ============================================================================
-// Logger
-// ============================================================================
-
 const logger: Logger = {
   debug: (msg: string, data?: unknown): void => {
     console.log(`[MarketApi] ${msg}`, data || "");
@@ -150,37 +146,37 @@ export const fetchAllQuotes = async (): Promise<NormalizedQuoteMap> => {
  * Fetch instruments for a specific exchange
  * Called when switching exchange tabs
  */
-export const fetchInstruments = async (
-  exchange: string,
-): Promise<StockInstrument[]> => {
-  try {
-    logger.debug(`Fetching instruments for exchange: ${exchange}`);
-    const response = await axios.get<
-      InstrumentDataRaw[] | InstrumentsApiResponse
-    >(`/api-bsc/datafeed/instruments?exchange=${exchange}`);
-    const data = response.data;
+// export const fetchInstruments = async (
+//   exchange: string,
+// ): Promise<StockInstrument[]> => {
+//   try {
+//     logger.debug(`Fetching instruments for exchange: ${exchange}`);
+//     const response = await axios.get<
+//       InstrumentDataRaw[] | InstrumentsApiResponse
+//     >(`/api-bsc/datafeed/instruments?exchange=${exchange}`);
+//     const data = response.data;
 
-    let instruments: InstrumentDataRaw[] = [];
-    if (Array.isArray(data)) {
-      instruments = data;
-    } else if (data?.s === "ok" && Array.isArray(data.d)) {
-      instruments = data.d;
-    }
+//     let instruments: InstrumentDataRaw[] = [];
+//     if (Array.isArray(data)) {
+//       instruments = data;
+//     } else if (data?.s === "ok" && Array.isArray(data.d)) {
+//       instruments = data.d;
+//     }
 
-    const stocks = instruments.map((instrument) => {
-      const normalized = normalizeInstrumentData(
-        instrument as unknown as Record<string, unknown>,
-      );
-      return createStockInstrument(normalized);
-    });
+//     const stocks = instruments.map((instrument) => {
+//       const normalized = normalizeInstrumentData(
+//         instrument as unknown as Record<string, unknown>,
+//       );
+//       return createStockInstrument(normalized);
+//     });
 
-    logger.debug(`Fetched ${stocks.length} instruments for ${exchange}`);
-    return stocks;
-  } catch (error) {
-    logger.error(`Failed to fetch instruments for ${exchange}`, error);
-    throw error;
-  }
-};
+//     logger.debug(`Fetched ${stocks.length} instruments for ${exchange}`);
+//     return stocks;
+//   } catch (error) {
+//     logger.error(`Failed to fetch instruments for ${exchange}`, error);
+//     throw error;
+//   }
+// };
 
 /**
  * Fetch instruments and merge with quote data
@@ -219,8 +215,3 @@ export const fetchInstrumentsByExchange = async (
     throw error;
   }
 };
-
-/**
- * Alias for fetchInstrumentsByExchange
- */
-export const fetchAllExchangeStocks = fetchInstrumentsByExchange;

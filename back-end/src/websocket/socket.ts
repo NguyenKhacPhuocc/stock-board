@@ -158,10 +158,9 @@ export const initSocket = (server: HttpServer) => {
       const roomSockets = io.sockets.adapter.rooms.get(room);
       const socketCount = roomSockets ? roomSockets.size : 0;
       
-      if (socketCount > 0) {
-        io.to(room).emit("i", { a: "u", d: batch });
-        logger.debug(`Emitted ${batch.length} stocks to room ${room} (${socketCount} clients)`);
-      }
+      // Always emit to room, even if no clients connected (for future subscribers to catch)
+      io.to(room).emit("i", { a: "u", d: batch });
+      logger.debug(`Emitted ${batch.length} stocks to room ${room} (${socketCount} clients)`);
     } else {
       // Fallback: broadcast to all (for unknown symbols)
       logger.debug(`No exchange info, broadcasting ${batch.length} stocks to all`);

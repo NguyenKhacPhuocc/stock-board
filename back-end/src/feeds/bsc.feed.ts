@@ -64,10 +64,10 @@ export class BSCFeed {
       this.subscribe(indexChannels);
       logger.debug("Subscribed to all market indices");
 
-      // Re-subscribe to current exchange streams after reconnect
+      // Re-subscribe to exchanges that clients are currently watching
       if (this.currentExchanges.size > 0) {
         const exchanges = Array.from(this.currentExchanges);
-        logger.debug("Re-subscribing to exchange streams after reconnect", { exchanges });
+        logger.debug("Re-subscribing to active exchanges after reconnect", { exchanges });
         this.subscribeToExchanges(exchanges);
       }
     });

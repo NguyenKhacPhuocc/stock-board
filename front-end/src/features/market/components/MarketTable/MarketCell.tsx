@@ -2,7 +2,6 @@ import { memo, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { useAppSelector } from "@/app/hooks";
 import { formatPrice, formatVol, formatPercent, formatChange, getColorClass } from "../../marketUtils";
-import { marketCache } from "../../marketCache";
 import type { StockInstrument, CellType, FieldValue, MarketCellProps } from "../../marketTypes";
 import styles from "./MarketCell.module.scss";
 
@@ -53,30 +52,9 @@ const MarketCell = memo(({
   isCalculated
 }: MarketCellProps) => {
   const reduxStock = useAppSelector(state => state.market.entities[symbol]);
-  const [cacheData, setCacheData] = useState<StockInstrument | undefined>(
-    () => reduxStock || marketCache.get(symbol)
-  );
   const [flashClass, setFlashClass] = useState<string>("");
   const prevValueRef = useRef<FieldValue>(undefined);
-  const data = reduxStock || cacheData;
-
-  useEffect(() => {
-    const unsubscribe = marketCache.subscribe(symbol, (updatedStock) => {
-      setCacheData((prev) => {
-        if (!prev) return updatedStock;
-
-        const valueChanged = getFieldValue(prev, field) !== getFieldValue(updatedStock, field);
-        const colorSource = colorField || (type === "price" ? field : undefined);
-        const colorChanged = colorSource
-          ? getFieldValue(prev, colorSource) !== getFieldValue(updatedStock, colorSource)
-          : false;
-
-        const shouldUpdate = valueChanged || colorChanged || prev.RE !== updatedStock.RE;
-        return shouldUpdate ? updatedStock : prev;
-      });
-    });
-    return unsubscribe;
-  }, [symbol, field, colorField, type]);
+  const data = reduxStock;
 
   const value = data
     ? isCalculated

@@ -10,7 +10,6 @@ import {
   selectHighlightedSymbol
 } from "../../marketSelectors";
 import { getColorClass } from "../../marketUtils";
-import { marketCache } from "../../marketCache";
 import MarketCell from "./MarketCell";
 import styles from "./MarketTable.module.scss";
 
@@ -56,6 +55,9 @@ const SymbolCell = memo(({ symbol, isPinned }: { symbol: string; isPinned: boole
       <span className={colorCode}>{symbol}</span>
     </td>
   );
+}, (prevProps, nextProps) => {
+  // Custom equality: only re-render if symbol or isPinned changed
+  return prevProps.symbol === nextProps.symbol && prevProps.isPinned === nextProps.isPinned;
 });
 
 SymbolCell.displayName = 'SymbolCell';
@@ -127,6 +129,13 @@ const StockRow = memo(({
       <MarketCell symbol={symbol} field="LO" type="price" fixedColorClass={styles.colorDown} />
     </tr>
   );
+}, (prevProps, nextProps) => {
+  // Custom equality: only re-render if symbol, isHighlighted or isPinned changed
+  return (
+    prevProps.symbol === nextProps.symbol &&
+    prevProps.isHighlighted === nextProps.isHighlighted &&
+    prevProps.isPinned === nextProps.isPinned
+  );
 });
 
 const TableColGroup = memo(() => (
@@ -187,13 +196,6 @@ export default function MarketTable() {
   const highlightedSymbol = useAppSelector(selectHighlightedSymbol);
   const pinnedSymbols = useAppSelector(selectPinnedFilteredStockSymbols);
   const unpinnedSymbols = useAppSelector(selectUnpinnedFilteredStockSymbols);
-  const allStocks = useAppSelector(state => state.market.stocks);
-
-  useEffect(() => {
-    if (allStocks.length > 0) {
-      marketCache.setInitialData(allStocks);
-    }
-  }, [allStocks]);
 
   return (
     <div className={styles.tableWrapper}>

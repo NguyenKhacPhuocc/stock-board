@@ -60,63 +60,72 @@ const handleSocketConnection = (socket: AuthenticatedSocket) => {
     userId: socket.user?.userId,
   });
 
-  socket.on("subscribe", (data: { exchange: string }, ack?: (msg: any) => void) => {
-    if (!data?.exchange) {
-      logger.error("Invalid subscribe request - missing exchange", { clientId, data });
-      if (ack) ack({ status: "error", message: "Exchange is required" });
-      return;
-    }
+  socket.on(
+    "subscribe",
+    (data: { exchange: string }, ack?: (msg: any) => void) => {
+      if (!data?.exchange) {
+        logger.error("Invalid subscribe request - missing exchange", {
+          clientId,
+          data,
+        });
+        if (ack) ack({ status: "error", message: "Exchange is required" });
+        return;
+      }
 
-    const exchange = data.exchange.toUpperCase();
-    const validExchanges = ['HOSE', 'HNX', 'UPCOM'];
-    
-    if (!validExchanges.includes(exchange)) {
-      logger.error("Invalid exchange", { clientId, exchange });
-      if (ack) ack({ status: "error", message: "Invalid exchange" });
-      return;
-    }
+      const exchange = data.exchange.toUpperCase();
+      const validExchanges = ["HOSE", "HNX", "UPCOM"];
 
-    // Leave all previous exchange rooms
-    validExchanges.forEach(ex => {
-      socket.leave(`e:${ex}`);
-    });
-    
-    // Join new exchange room
-    socket.join(`e:${exchange}`);
-    
-    subscriptionManager.subscribeToExchange(clientId, exchange);
+      if (!validExchanges.includes(exchange)) {
+        logger.error("Invalid exchange", { clientId, exchange });
+        if (ack) ack({ status: "error", message: "Invalid exchange" });
+        return;
+      }
 
-    logger.debug("Exchange subscription processed", {
-      clientId,
-      exchange,
-      rooms: Array.from(socket.rooms),
-    });
+      // Leave all previous exchange rooms
+      validExchanges.forEach((ex) => {
+        socket.leave(`e:${ex}`);
+      });
 
-    if (ack) ack({ status: "ok", exchange });
-  });
+      // Join new exchange room
+      socket.join(`e:${exchange}`);
 
-  socket.on("unsubscribe", (data: { exchange: string }, ack?: (msg: any) => void) => {
-    if (!data?.exchange) {
-      logger.error("Invalid unsubscribe request", { clientId, data });
-      if (ack) ack({ status: "error", message: "Exchange is required" });
-      return;
-    }
+      subscriptionManager.subscribeToExchange(clientId, exchange);
 
-    const exchange = data.exchange.toUpperCase();
-    
-    // Leave exchange room
-    socket.leave(`e:${exchange}`);
-    
-    subscriptionManager.unsubscribeFromExchange(clientId, exchange);
+      logger.debug("Exchange subscription processed", {
+        clientId,
+        exchange,
+        rooms: Array.from(socket.rooms),
+      });
 
-    logger.debug("Exchange unsubscription processed", {
-      clientId,
-      exchange,
-      rooms: Array.from(socket.rooms),
-    });
+      if (ack) ack({ status: "ok", exchange });
+    },
+  );
 
-    if (ack) ack({ status: "ok", exchange });
-  });
+  socket.on(
+    "unsubscribe",
+    (data: { exchange: string }, ack?: (msg: any) => void) => {
+      if (!data?.exchange) {
+        logger.error("Invalid unsubscribe request", { clientId, data });
+        if (ack) ack({ status: "error", message: "Exchange is required" });
+        return;
+      }
+
+      const exchange = data.exchange.toUpperCase();
+
+      // Leave exchange room
+      socket.leave(`e:${exchange}`);
+
+      subscriptionManager.unsubscribeFromExchange(clientId, exchange);
+
+      logger.debug("Exchange unsubscription processed", {
+        clientId,
+        exchange,
+        rooms: Array.from(socket.rooms),
+      });
+
+      if (ack) ack({ status: "ok", exchange });
+    },
+  );
 
   socket.on("disconnect", () => {
     logger.debug("Client disconnected", { clientId });
@@ -157,13 +166,17 @@ export const initSocket = (server: HttpServer) => {
       const room = `e:${exchange}`;
       const roomSockets = io.sockets.adapter.rooms.get(room);
       const socketCount = roomSockets ? roomSockets.size : 0;
-      
+
       // Always emit to room, even if no clients connected (for future subscribers to catch)
       io.to(room).emit("i", { a: "u", d: batch });
-      logger.debug(`Emitted ${batch.length} stocks to room ${room} (${socketCount} clients)`);
+      logger.debug(
+        `Emitted ${batch.length} stocks to room ${room} (${socketCount} clients)`,
+      );
     } else {
       // Fallback: broadcast to all (for unknown symbols)
-      logger.debug(`No exchange info, broadcasting ${batch.length} stocks to all`);
+      logger.debug(
+        `No exchange info, broadcasting ${batch.length} stocks to all`,
+      );
       io.emit("i", { a: "u", d: batch });
     }
   });

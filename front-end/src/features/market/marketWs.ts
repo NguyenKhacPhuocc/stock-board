@@ -51,9 +51,9 @@ export const useMarketWebSocket = (exchange: string): void => {
     if (!socketRef.current) {
       logger.debug("Creating socket connection");
       socketRef.current = createSocket();
-      
+
       const socket = socketRef.current;
-      
+
       // Setup event handlers
       socket.on("connect", () => {
         logger.debug("Connected to backend", { socketId: socket.id });
@@ -76,7 +76,9 @@ export const useMarketWebSocket = (exchange: string): void => {
       socket.on("i", (payload: unknown) => {
         if (isValidUpdate(payload)) {
           const batch = payload.d;
-          logger.debug(`Received ${batch.length} stock updates from ${exchange}`);
+          logger.debug(
+            `Received ${batch.length} stock updates from ${exchange}`,
+          );
           dispatch(batchUpdateStocks(batch));
         }
       });
@@ -90,13 +92,26 @@ export const useMarketWebSocket = (exchange: string): void => {
       const socket = socketRef.current;
       const previousExchange = previousExchangeRef.current;
 
-      if (socket.connected && previousExchange && previousExchange !== exchange) {
-        logger.debug(`Switching exchange from ${previousExchange} to ${exchange}`);
-        
+      if (
+        socket.connected &&
+        previousExchange &&
+        previousExchange !== exchange
+      ) {
+        logger.debug(
+          `Switching exchange from ${previousExchange} to ${exchange}`,
+        );
+
         // Unsubscribe from old exchange
-        socket.emit("unsubscribe", { exchange: previousExchange }, (ack: any) => {
-          logger.debug("Unsubscribed from exchange", { exchange: previousExchange, ack });
-        });
+        socket.emit(
+          "unsubscribe",
+          { exchange: previousExchange },
+          (ack: any) => {
+            logger.debug("Unsubscribed from exchange", {
+              exchange: previousExchange,
+              ack,
+            });
+          },
+        );
 
         // Subscribe to new exchange
         socket.emit("subscribe", { exchange }, (ack: any) => {

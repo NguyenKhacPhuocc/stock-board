@@ -56,18 +56,20 @@ export class BSCFeed {
       const indexChannels = [
         "idx:HOSE",
         "idx:30",
-        "idx:HNX", 
+        "idx:HNX",
         "idx:HNX30",
-        "idx:UPCOM"
+        "idx:UPCOM",
       ];
-      
+
       this.subscribe(indexChannels);
       logger.debug("Subscribed to all market indices");
 
       // Re-subscribe to exchanges that clients are currently watching
       if (this.currentExchanges.size > 0) {
         const exchanges = Array.from(this.currentExchanges);
-        logger.debug("Re-subscribing to active exchanges after reconnect", { exchanges });
+        logger.debug("Re-subscribing to active exchanges after reconnect", {
+          exchanges,
+        });
         this.subscribeToExchanges(exchanges);
       }
     });
@@ -156,22 +158,22 @@ export class BSCFeed {
   public subscribeToExchanges(exchanges: string[]) {
     if (!this.bscSocket || !this.bscSocket.connected) {
       logger.debug("Socket not connected, queueing exchanges", { exchanges });
-      exchanges.forEach(ex => this.currentExchanges.add(ex));
+      exchanges.forEach((ex) => this.currentExchanges.add(ex));
       return;
     }
 
     // Find which exchanges to unsubscribe and which to subscribe
     const toUnsubscribe = Array.from(this.currentExchanges).filter(
-      ex => !exchanges.includes(ex)
+      (ex) => !exchanges.includes(ex),
     );
     const toSubscribe = exchanges.filter(
-      ex => !this.currentExchanges.has(ex)
+      (ex) => !this.currentExchanges.has(ex),
     );
 
     // Unsubscribe from old exchanges (only e: channels)
     if (toUnsubscribe.length > 0) {
-      const unsubArgs = toUnsubscribe.map(ex => `e:${ex}`);
-      
+      const unsubArgs = toUnsubscribe.map((ex) => `e:${ex}`);
+
       const unsubscribeData = {
         url: "/client/subscribe",
         method: "get",
@@ -182,14 +184,17 @@ export class BSCFeed {
         },
       };
 
-      logger.debug(`Unsubscribing from exchanges: ${toUnsubscribe.join(', ')}`, { channels: unsubArgs });
+      logger.debug(
+        `Unsubscribing from exchanges: ${toUnsubscribe.join(", ")}`,
+        { channels: unsubArgs },
+      );
       this.bscSocket.emit("get", unsubscribeData);
     }
 
     // Subscribe to new exchanges (only e: channels)
     if (toSubscribe.length > 0) {
-      const subArgs = toSubscribe.map(ex => `e:${ex}`);
-      
+      const subArgs = toSubscribe.map((ex) => `e:${ex}`);
+
       const subscriptionData = {
         url: "/client/subscribe",
         method: "get",
@@ -200,16 +205,18 @@ export class BSCFeed {
         },
       };
 
-      logger.debug(`Subscribing to exchanges: ${toSubscribe.join(', ')}`, { channels: subArgs });
+      logger.debug(`Subscribing to exchanges: ${toSubscribe.join(", ")}`, {
+        channels: subArgs,
+      });
       this.bscSocket.emit("get", subscriptionData);
     }
-    
+
     // Update current exchanges
     this.currentExchanges.clear();
-    exchanges.forEach(ex => this.currentExchanges.add(ex));
-    
+    exchanges.forEach((ex) => this.currentExchanges.add(ex));
+
     if (toUnsubscribe.length === 0 && toSubscribe.length === 0) {
-      logger.debug('Exchange subscriptions unchanged');
+      logger.debug("Exchange subscriptions unchanged");
     }
   }
 
@@ -224,11 +231,11 @@ export class BSCFeed {
     }
 
     const args: string[] = [];
-    exchanges.forEach(ex => {
+    exchanges.forEach((ex) => {
       args.push(`e:${ex}`);
       args.push(`idx:${ex}`);
-      if (ex === 'HOSE') args.push('idx:30');
-      if (ex === 'HNX') args.push('idx:HNX30');
+      if (ex === "HOSE") args.push("idx:30");
+      if (ex === "HNX") args.push("idx:HNX30");
     });
 
     const unsubscribeData = {
@@ -241,11 +248,13 @@ export class BSCFeed {
       },
     };
 
-    logger.debug(`Unsubscribing from exchanges: ${exchanges.join(', ')}`, { channels: args });
+    logger.debug(`Unsubscribing from exchanges: ${exchanges.join(", ")}`, {
+      channels: args,
+    });
     this.bscSocket.emit("get", unsubscribeData);
-    
+
     // Remove from current exchanges
-    exchanges.forEach(ex => this.currentExchanges.delete(ex));
+    exchanges.forEach((ex) => this.currentExchanges.delete(ex));
   }
 
   public disconnect() {

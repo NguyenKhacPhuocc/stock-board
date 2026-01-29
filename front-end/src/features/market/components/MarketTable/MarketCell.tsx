@@ -129,7 +129,7 @@ const MarketCell = memo(({
         clearTimeout(flashTimeoutRef.current);
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colorPrice, value]);
 
   const colorClass = fixedColorClass || getColorClass(colorPrice, ref, ceil, flr);

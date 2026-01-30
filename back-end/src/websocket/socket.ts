@@ -169,14 +169,14 @@ export const initSocket = (server: HttpServer) => {
 
       // Always emit to room, even if no clients connected (for future subscribers to catch)
       io.to(room).emit("i", { a: "u", d: batch });
-      logger.debug(
-        `Emitted ${batch.length} stocks to room ${room} (${socketCount} clients)`,
-      );
+      // logger.debug(
+      //   `Emitted ${batch.length} stocks to room ${room} (${socketCount} clients)`,
+      // );
     } else {
       // Fallback: broadcast to all (for unknown symbols)
-      logger.debug(
-        `No exchange info, broadcasting ${batch.length} stocks to all`,
-      );
+      // logger.debug(
+      //   `No exchange info, broadcasting ${batch.length} stocks to all`,
+      // );
       io.emit("i", { a: "u", d: batch });
     }
   });

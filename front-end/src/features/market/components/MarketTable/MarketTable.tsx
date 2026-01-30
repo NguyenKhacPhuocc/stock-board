@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
 import { useIntl } from "react-intl";
 import clsx from "clsx";
@@ -13,6 +13,11 @@ import {
 import { getColorClass } from "../../marketUtils";
 import MarketCell from "./MarketCell";
 import styles from "./MarketTable.module.scss";
+import { FixedSizeList as List, type ListChildComponentProps } from "react-window";
+import type { VirtualRowData } from "../../marketTypes";
+import useMeasure from "react-use-measure";
+
+
 
 const HIGHLIGHT_TIMEOUT = 2000;
 
@@ -79,8 +84,6 @@ const StockRow = memo(({
 
   useEffect(() => {
     if (!isHighlighted || !rowRef.current) return;
-
-    rowRef.current.scrollIntoView({ behavior: 'auto', block: 'start' });
     const timer = setTimeout(() => {
       dispatch(setHighlightedSymbol(null));
     }, HIGHLIGHT_TIMEOUT);
@@ -180,6 +183,20 @@ const TableHeader = memo(() => {
   );
 });
 
+const VirtualRow = memo(({ index, style, data }: ListChildComponentProps< VirtualRowData>) => {
+  const sym = data.unpinnedSymbols[index];
+
+  return (
+    <StockRow
+      symbol={sym}
+      isHighlighted={data.highlightedSymbol === sym}
+      isPinned={false}
+      style={style}
+    />
+  );
+});
+
+VirtualRow.displayName = 'VirtualRow';
 StockRow.displayName = 'StockRow';
 TableHeader.displayName = 'TableHeader';
 
@@ -187,6 +204,23 @@ export default function MarketTable() {
   const highlightedSymbol = useAppSelector(selectHighlightedSymbol);
   const pinnedSymbols = useAppSelector(selectPinnedFilteredStockSymbols);
   const unpinnedSymbols = useAppSelector(selectUnpinnedFilteredStockSymbols);
+  const listRef = useRef<List>(null);
+  const virtualData = useMemo(() => ({
+    unpinnedSymbols,
+    highlightedSymbol
+  }), [unpinnedSymbols, highlightedSymbol]);
+  
+  const [ref, bounds] = useMeasure();
+
+  useEffect(() => {
+    if (!highlightedSymbol || !listRef.current) return;
+
+    const index = unpinnedSymbols.indexOf(highlightedSymbol);
+
+    if (index >= 0) {
+      listRef.current.scrollToItem(index, "start");
+    }
+  }, [highlightedSymbol, unpinnedSymbols]);
 
   return (
     <div className={styles.tableWrapper}>
@@ -204,16 +238,23 @@ export default function MarketTable() {
         </div>
       </div>
 
-      <div className={styles.scrollableTableContainer}>
+      <div ref={ref} className={styles.scrollableTableContainer}>
         <div className={styles.body}>
-          {unpinnedSymbols.map((sym: string) => (
-            <StockRow
-              key={sym}
-              symbol={sym}
-              isHighlighted={highlightedSymbol === sym}
-              isPinned={false}
-            />
-          ))}
+          {bounds.width > 0 && bounds.height > 0 && (
+            <List
+              key={unpinnedSymbols.length}
+              ref={listRef}
+              height={bounds.height}
+              width={bounds.width}
+              itemKey={(index, data) => data.unpinnedSymbols[index]}
+              itemCount={unpinnedSymbols.length}
+              itemSize={28}
+              overscanCount={4}
+              itemData={virtualData}
+            >
+              {VirtualRow}
+            </List>
+          )}
         </div>
       </div>
     </div>

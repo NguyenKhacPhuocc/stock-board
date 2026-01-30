@@ -42,13 +42,6 @@ function formatCellValue(value: FieldValue, type: CellType): string {
   }
 }
 
-// Helper: get value for comparison (used in color detection & flash)
-function getCompareValue(colorPrice: number | undefined, value: FieldValue): number | undefined {
-  if (colorPrice !== undefined) return colorPrice;
-  if (value !== undefined) return Number(value);
-  return undefined;
-}
-
 const MarketCell = memo(({
   symbol,
   field,
@@ -87,30 +80,41 @@ const MarketCell = memo(({
 
   const [flashClass, setFlashClass] = useState<string>("");
   const prevValueRef = useRef<number | undefined>(undefined);
+  const prevColorPriceRef = useRef<number | undefined>(undefined);
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstEffectRef = useRef(true);
 
   useEffect(() => {
-    const compareValue = getCompareValue(colorPrice, value);
+    // Check if main value changed
+    const valueChanged = value !== prevValueRef.current;
+    // Check if colorPrice changed (for Vol cells or color determination)
+    const colorChanged = colorPrice !== prevColorPriceRef.current;
 
-    // On first effect render, set initial value and skip flash
+    // On first effect render, set initial values and skip flash
     if (isFirstEffectRef.current) {
-      prevValueRef.current = compareValue;
+      prevValueRef.current = value as number | undefined;
+      prevColorPriceRef.current = colorPrice as number | undefined;
       isFirstEffectRef.current = false;
       return;
     }
 
-    // Skip if value hasn't actually changed
-    if (compareValue === undefined || prevValueRef.current === compareValue) {
-      prevValueRef.current = compareValue;
+    // Skip if nothing changed
+    if (!valueChanged && !colorChanged) {
       return;
     }
 
-    // Value changed - trigger highlight
-    prevValueRef.current = compareValue;
+    // Update refs
+    prevValueRef.current = value as number | undefined;
+    prevColorPriceRef.current = colorPrice as number | undefined;
+
+    const flashValue = colorField ? colorPrice : value;
+
+    if (flashValue === undefined) {
+      return;
+    }
 
     // Determine flash color and trigger animation
-    const flashColor = determineFlashColor(compareValue, ref, ceil, flr, styles);
+    const flashColor = determineFlashColor(flashValue as number, ref, ceil, flr, styles);
 
     // Clear any existing timeout
     if (flashTimeoutRef.current) {
@@ -130,7 +134,7 @@ const MarketCell = memo(({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [colorPrice, value]);
+  }, [value, colorPrice]);
 
   const colorClass = fixedColorClass || getColorClass(colorPrice, ref, ceil, flr);
   const formattedValue = formatCellValue(value, type);

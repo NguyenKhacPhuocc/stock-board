@@ -30,24 +30,18 @@ class MarketService extends EventEmitter {
     this.setMaxListeners(20); // Prevent memory leak warnings
   }
 
-  /**
-   * Set exchange mapping for a symbol
-   */
+  // Set exchange mapping for a symbol
   public setSymbolExchange(symbol: string, exchange: string): void {
     this.symbolExchangeMap.set(symbol, exchange);
   }
 
-  /**
-   * Get exchange for a symbol (returns undefined if not known)
-   */
+  // Get exchange for a symbol (returns undefined if not known)
   public getSymbolExchange(symbol: string): string | undefined {
     return this.symbolExchangeMap.get(symbol);
   }
 
-  /**
-   * Load symbol-exchange mapping from BSC API
-   * Should be called once on server startup
-   */
+  // Load symbol-exchange mapping from BSC API
+  // Should be called once on server startup
   public async loadSymbolExchangeMapping(): Promise<void> {
     logger.debug("Loading symbol-exchange mapping from BSC API");
     
@@ -84,9 +78,7 @@ class MarketService extends EventEmitter {
     logger.debug(`Total symbol mappings loaded: ${this.symbolExchangeMap.size}`);
   }
 
-  /**
-   * Extract symbol from raw data item
-   */
+  // Extract symbol from raw data item
   private extractSymbol(item: any): string | null {
     return item.SB || item.symbol || item.id || item.Id || null;
   }

@@ -261,3 +261,9 @@ export interface MarketCellProps {
   colorField?: string;
   isCalculated?: boolean;
 }
+
+
+export type VirtualRowData = {
+  unpinnedSymbols: string[];
+  highlightedSymbol: string | null;
+};

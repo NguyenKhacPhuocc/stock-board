@@ -16,7 +16,7 @@ const logger = {
 };
 
 const BSC_API_URL = process.env.BSC_API_URL || "https://priceapi.bsc.com.vn";
-const EXCHANGES = ["HOSE", "HNX", "UPCOM"];
+import { EXCHANGES } from "../constants/exchanges";
 
 class MarketService extends EventEmitter {
   private marketMap = new Map<string, MarketSnapshotItem>();

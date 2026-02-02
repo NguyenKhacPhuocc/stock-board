@@ -9,6 +9,7 @@ import {
   normalizeInstrumentData,
   mergeStockData,
 } from "./fieldMapping";
+import { EXCHANGES } from "@/constants/exchanges";
 import type {
   StockInstrument,
   QuoteDataRaw,
@@ -179,7 +180,7 @@ export const fetchIndexSnapshot = async (): Promise<Record<string, IndexSnapshot
   try {
     logger.debug("Fetching market index snapshot for all exchanges");
     
-    const exchanges: ExchangeType[] = ["HOSE", "HNX", "UPCOM"];
+    const exchanges: ExchangeType[] = EXCHANGES as unknown as ExchangeType[];
     const indexMap: Record<string, IndexSnapshotRaw> = {};
     
     const promises = exchanges.map(async (exchange) => {

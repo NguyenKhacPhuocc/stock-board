@@ -1,5 +1,6 @@
 import ioClient from "socket.io-client";
 import { marketService } from "../services/market.service";
+import { EXCHANGES } from "../constants/exchanges";
 
 const logger = {
   debug: (msg: string, data?: any) => {
@@ -25,10 +26,7 @@ export class BSCFeed {
   constructor() {}
 
   public connect() {
-    if (this.isConnecting) {
-      logger.debug("Already connecting, skipping...");
-      return;
-    }
+    if (this.isConnecting) return;
 
     this.isConnecting = true;
     logger.debug("Connecting to BSC...", { url: this.BSC_URL });
@@ -50,24 +48,19 @@ export class BSCFeed {
     this.bscSocket.on("connect", () => {
       this.isConnecting = false;
       this.reconnectAttempts = 0;
-      logger.debug("Connected to BSC successfully");
 
-      const indexChannels = [
-        "idx:HOSE",
-        // "idx:30",
-        "idx:HNX",
-        // "idx:HNX30",
-        "idx:UPCOM",
-      ];
+      const indexChannels = EXCHANGES.flatMap((ex) => {
+        const idx = [`idx:${ex}`];
+        // if (ex === "HOSE") idx.push("idx:30");
+        // if (ex === "HNX") idx.push("idx:HNX30");
+        return idx;
+      });
 
       this.subscribe(indexChannels);
 
       // Re-subscribe to exchanges that clients are currently watching
       if (this.currentExchanges.size > 0) {
         const exchanges = Array.from(this.currentExchanges);
-        logger.debug("Re-subscribing to active exchanges after reconnect", {
-          exchanges,
-        });
         this.subscribeToExchanges(exchanges);
       }
     });
@@ -82,13 +75,11 @@ export class BSCFeed {
 
     this.bscSocket.on("disconnect", (reason: string) => {
       this.isConnecting = false;
-      logger.debug("Disconnected from BSC", { reason });
       this.scheduleReconnect();
     });
 
     this.bscSocket.on("connect_error", (error: any) => {
       this.isConnecting = false;
-      logger.error("Connection error", { message: error.message });
       this.scheduleReconnect();
     });
   }
@@ -125,10 +116,7 @@ export class BSCFeed {
   }
 
   private subscribe(args: string[]) {
-    if (!this.bscSocket || !this.bscSocket.connected) {
-      logger.debug("Socket not connected, skipping subscription");
-      return;
-    }
+    if (!this.bscSocket || !this.bscSocket.connected) return;
 
     const subscriptionData = {
       url: "/client/subscribe",
@@ -171,11 +159,6 @@ export class BSCFeed {
           args: unsubArgs,
         },
       };
-
-      logger.debug(
-        `Unsubscribing from exchanges: ${toUnsubscribe.join(", ")}`,
-        { channels: unsubArgs },
-      );
       this.bscSocket.emit("get", unsubscribeData);
     }
 
@@ -192,20 +175,12 @@ export class BSCFeed {
           args: subArgs,
         },
       };
-
-      logger.debug(`Subscribing to exchanges: ${toSubscribe.join(", ")}`, {
-        channels: subArgs,
-      });
       this.bscSocket.emit("get", subscriptionData);
     }
 
     // Update current exchanges
     this.currentExchanges.clear();
     exchanges.forEach((ex) => this.currentExchanges.add(ex));
-
-    if (toUnsubscribe.length === 0 && toSubscribe.length === 0) {
-      logger.debug("Exchange subscriptions unchanged");
-    }
   }
 
   public unsubscribeFromExchanges(exchanges: string[]) {

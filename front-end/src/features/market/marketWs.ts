@@ -67,7 +67,6 @@ const setupSocketListeners = (socket: Socket, onStockUpdate: (batch: any[]) => v
 
   socket.on("idx", (payload: unknown) => {
     const data = (payload as any).d;
-    // Handle both array and object formats
     const items = Array.isArray(data) ? data : [data];
     items.forEach((item: any) => {
       const exchange = item.MC; 
@@ -111,21 +110,17 @@ export const useMarketWebSocket = (exchange: string): void => {
     if (!socket) return;
 
     const handleExchangeSubscribe = () => {
-      logger.debug(`Subscribing to ${exchange}`);
       socket.emit("subscribe", { exchange });
     };
 
     if (socket.connected) {
       handleExchangeSubscribe();
     } else {
-      // Subscribe when socket connects
       socket.on("connect", handleExchangeSubscribe);
     }
 
-    // Cleanup: unsubscribe when exchange changes
     return () => {
       if (socket.connected) {
-        logger.debug(`Unsubscribing from ${exchange}`);
         socket.emit("unsubscribe", { exchange });
       }
     };

@@ -1,12 +1,13 @@
 import styles from "./MarketIndexCard.module.scss";
 import MarketIndexChart from "./MarketIndexChart";
+import type { ExchangeType } from "@/features/market/marketTypes";
 // import type { MarketIndexData } from "@/features/market/marketTypes";
 import clsx from "clsx";
 import { useIntl } from "react-intl";
 import { useAppSelector } from "@/app/hooks";
 
 interface Props {
-  exchange: "HOSE" | "HNX" | "UPCOM";
+  exchange: ExchangeType;
 }
 
 export default function MarketIndexCard({ exchange }: Props) {

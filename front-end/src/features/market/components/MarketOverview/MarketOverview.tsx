@@ -1,6 +1,5 @@
 import MarketIndexCard from "./MarketIndexCard";
-
-const EXCHANGES = ["HOSE", "HNX", "UPCOM"] as const;
+import { EXCHANGES } from "@/constants/exchanges";
 
 export default function MarketOverview() {
   return (

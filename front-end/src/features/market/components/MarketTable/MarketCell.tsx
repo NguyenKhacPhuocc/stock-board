@@ -68,7 +68,6 @@ const MarketCell = memo(({
       colorPrice: cPrice,
     };
   }, (prev, next) => {
-    // Stable selector: prevent re-render if all values are equal
     return (
       prev.value === next.value &&
       prev.ref === next.ref &&

@@ -7,6 +7,7 @@ import { setSelectedExchange, setSelectedType, setHighlightedSymbol } from "../.
 import { selectSelectedExchange, selectSelectedType, selectSearchStocks } from "../../marketSelectors";
 import type { StockInstrument, ExchangeType } from "../../marketTypes";
 import styles from "./MarketToolBar.module.scss";
+import { EXCHANGES } from "@/constants/exchanges";
 
 
 function sortSuggestions(stocks: StockInstrument[], searchTerm: string): StockInstrument[] {
@@ -130,7 +131,7 @@ export default function MarketToolBar() {
         </div>
 
         <div className={styles.marketTabs}>
-          {(['HOSE', 'HNX', 'UPCOM'] as const).map((ex) => {
+          {EXCHANGES.map((ex) => {
             const isActive = selectedExchange === ex && (selectedType === 'STOCK' || selectedType === 'ALL');
             return (
               <div

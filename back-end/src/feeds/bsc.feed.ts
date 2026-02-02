@@ -35,8 +35,8 @@ export class BSCFeed {
 
     this.bscSocket = ioClient(this.BSC_URL, {
       path: "/market/socket.io",
-      transports: ["websocket", "polling"], // Fallback to polling
-      reconnection: false, // Handle reconnection manually
+      transports: ["websocket", "polling"],
+      reconnection: false,
       timeout: 20000,
       forceNew: true,
       query: {
@@ -52,17 +52,15 @@ export class BSCFeed {
       this.reconnectAttempts = 0;
       logger.debug("Connected to BSC successfully");
 
-      // Subscribe to ALL indices once (they don't change)
       const indexChannels = [
         "idx:HOSE",
-        "idx:30",
+        // "idx:30",
         "idx:HNX",
-        "idx:HNX30",
+        // "idx:HNX30",
         "idx:UPCOM",
       ];
 
       this.subscribe(indexChannels);
-      logger.debug("Subscribed to all market indices");
 
       // Re-subscribe to exchanges that clients are currently watching
       if (this.currentExchanges.size > 0) {
@@ -74,8 +72,6 @@ export class BSCFeed {
       }
     });
 
-    // Pass raw data to MarketService for state management
-    // MarketService will group data by exchange using symbol-exchange mapping
     this.bscSocket.on("i", (payload: any) => {
       marketService.onRawFeed(payload, "i");
     });
@@ -128,9 +124,6 @@ export class BSCFeed {
     }, delay);
   }
 
-  /**
-   * Generic subscribe method for any channels
-   */
   private subscribe(args: string[]) {
     if (!this.bscSocket || !this.bscSocket.connected) {
       logger.debug("Socket not connected, skipping subscription");
@@ -147,14 +140,9 @@ export class BSCFeed {
       },
     };
 
-    logger.debug(`Subscribing to ${args.length} channels`, args);
     this.bscSocket.emit("get", subscriptionData);
   }
 
-  /**
-   * Subscribe to specific exchanges (HOSE, HNX, or UPCOM)
-   * Only subscribes to 'e:' channels (stock streams), not indices
-   */
   public subscribeToExchanges(exchanges: string[]) {
     if (!this.bscSocket || !this.bscSocket.connected) {
       logger.debug("Socket not connected, queueing exchanges", { exchanges });
@@ -220,10 +208,6 @@ export class BSCFeed {
     }
   }
 
-  /**
-   * Unsubscribe from specific exchanges
-   * Note: Some WebSocket APIs may not support selective unsubscribe
-   */
   public unsubscribeFromExchanges(exchanges: string[]) {
     if (!this.bscSocket || !this.bscSocket.connected) {
       logger.debug("Socket not connected, skipping unsubscribe");

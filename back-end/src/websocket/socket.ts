@@ -167,16 +167,13 @@ export const initSocket = (server: HttpServer) => {
       const roomSockets = io.sockets.adapter.rooms.get(room);
       const socketCount = roomSockets ? roomSockets.size : 0;
 
-      // Always emit to room, even if no clients connected (for future subscribers to catch)
+      // emit to room, even if no clients connected (for future subscribers to catch)
       io.to(room).emit("i", { a: "u", d: batch });
-      // logger.debug(
-      //   `Emitted ${batch.length} stocks to room ${room} (${socketCount} clients)`,
-      // );
+      logger.debug(
+        `Emitted ${batch.length} stocks to room ${room} (${socketCount} clients)`,
+      );
     } else {
       // Fallback: broadcast to all (for unknown symbols)
-      // logger.debug(
-      //   `No exchange info, broadcasting ${batch.length} stocks to all`,
-      // );
       io.emit("i", { a: "u", d: batch });
     }
   });
@@ -188,12 +185,5 @@ export const initSocket = (server: HttpServer) => {
 
   io.on("connection", handleSocketConnection);
 
-  return io;
-};
-
-export const getIO = () => {
-  if (!io) {
-    throw new Error("Socket.io not initialized");
-  }
   return io;
 };

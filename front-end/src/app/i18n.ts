@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import viMessages from '@/locales/vi.json';
 import enMessages from '@/locales/en.json';
 

@@ -4,8 +4,6 @@ import type {
   BSCFeedPayload,
   MarketEventType,
   MarketSnapshotItem,
-  BSCInstrumentData,
-  BSCIndexData,
 } from "../types/market.types";
 
 const logger = {
@@ -41,7 +39,6 @@ class MarketService extends EventEmitter {
   }
 
   // Load symbol-exchange mapping from BSC API
-  // Should be called once on server startup
   public async loadSymbolExchangeMapping(): Promise<void> {
     logger.debug("Loading symbol-exchange mapping from BSC API");
     
@@ -83,10 +80,6 @@ class MarketService extends EventEmitter {
     return item.SB || item.symbol || item.id || item.Id || null;
   }
 
-  /**
-   * Process raw data from BSC feed
-   * Groups data by exchange and emits separately for each exchange room
-   */
   public onRawFeed(payload: BSCFeedPayload, type: MarketEventType = "i"): void {
     if (payload?.a !== "u" || !Array.isArray(payload.d)) {
       return;

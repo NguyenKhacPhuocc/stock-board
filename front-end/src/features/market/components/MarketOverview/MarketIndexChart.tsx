@@ -1,5 +1,6 @@
 import Chart from "react-apexcharts";
 import type { ApexOptions } from "apexcharts";
+import { useMemo, memo } from "react";
 import styles from "./MarketIndexCard.module.scss";
 
 interface Props {
@@ -11,10 +12,10 @@ interface Props {
   color: 'up' | 'down' | 'ref';
 }
 
-export default function MarketIndexChart({ data, color }: Props) {
+function MarketIndexChart({ data, color }: Props) {
   const chartColor = color === 'up' ? '#00ff00' : color === 'down' ? '#ff3b3b' : '#ffd700';
 
-  const options: ApexOptions = {
+  const options: ApexOptions = useMemo(() => ({
     chart: {
       type: 'line',
       background: '#000',
@@ -39,12 +40,12 @@ export default function MarketIndexChart({ data, color }: Props) {
       type: ["gradient", "solid"],
       gradient: {
         shade: 'dark',
-        type: "vertical",  //Gradient chạy từ trên xuống dưới.
+        type: "vertical",
         shadeIntensity: 0.5,
         inverseColors: false,
         opacityFrom: 0.8,
         opacityTo: 0.1,
-        stops: [0, 100],  // Đảm bảo dải màu trải dài toàn bộ area
+        stops: [0, 100],
       }
     },
     tooltip: {
@@ -124,9 +125,9 @@ export default function MarketIndexChart({ data, color }: Props) {
         opposite: true,
       },
     ],
-  };
+  }), [chartColor]);
 
-  const series = [
+  const series = useMemo(() => [
     {
       name: "Index",
       type: "area",
@@ -143,7 +144,7 @@ export default function MarketIndexChart({ data, color }: Props) {
         y: d.volume
       })),
     },
-  ];
+  ], [data]);
 
   return (
     <Chart
@@ -155,3 +156,5 @@ export default function MarketIndexChart({ data, color }: Props) {
     />
   );
 }
+
+export default memo(MarketIndexChart);

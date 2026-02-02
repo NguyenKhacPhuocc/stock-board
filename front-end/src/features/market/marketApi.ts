@@ -17,6 +17,12 @@ import type {
   InstrumentsApiResponse,
   NormalizedQuoteMap,
   Logger,
+  IndexSnapshotApiResponse,
+  IndexSnapshotRaw,
+  ChartInDayRaw,
+  ChartInDayApiResponse,
+  ChartDataPoint,
+  ExchangeType,
 } from "./marketTypes";
 
 const logger: Logger = {
@@ -26,6 +32,29 @@ const logger: Logger = {
   error: (msg: string, error?: unknown): void => {
     console.error(`[MarketApi] ${msg}`, error || "");
   },
+};
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Convert raw chart in day data to array of ChartDataPoint
+ */
+const convertChartData = (chartRaw: ChartInDayRaw): ChartDataPoint[] => {
+  const chartData: ChartDataPoint[] = [];
+  const length = chartRaw.formattedtime.length;
+  
+  for (let i = 0; i < length; i++) {
+    chartData.push({
+      time: chartRaw.formattedtime[i],
+      value: chartRaw.close[i],
+      volume: chartRaw.volume[i],
+      unixtime: chartRaw.unixtime[i],
+    });
+  }
+  
+  return chartData;
 };
 
 // ============================================================================
@@ -143,40 +172,57 @@ export const fetchAllQuotes = async (): Promise<NormalizedQuoteMap> => {
 };
 
 /**
- * Fetch instruments for a specific exchange
- * Called when switching exchange tabs
+ * Fetch market index snapshot and chart data for all exchanges
+ * Combines indexsnaps and chartinday API responses
  */
-// export const fetchInstruments = async (
-//   exchange: string,
-// ): Promise<StockInstrument[]> => {
-//   try {
-//     logger.debug(`Fetching instruments for exchange: ${exchange}`);
-//     const response = await axios.get<
-//       InstrumentDataRaw[] | InstrumentsApiResponse
-//     >(`/api-bsc/datafeed/instruments?exchange=${exchange}`);
-//     const data = response.data;
-
-//     let instruments: InstrumentDataRaw[] = [];
-//     if (Array.isArray(data)) {
-//       instruments = data;
-//     } else if (data?.s === "ok" && Array.isArray(data.d)) {
-//       instruments = data.d;
-//     }
-
-//     const stocks = instruments.map((instrument) => {
-//       const normalized = normalizeInstrumentData(
-//         instrument as unknown as Record<string, unknown>,
-//       );
-//       return createStockInstrument(normalized);
-//     });
-
-//     logger.debug(`Fetched ${stocks.length} instruments for ${exchange}`);
-//     return stocks;
-//   } catch (error) {
-//     logger.error(`Failed to fetch instruments for ${exchange}`, error);
-//     throw error;
-//   }
-// };
+export const fetchIndexSnapshot = async (): Promise<Record<string, IndexSnapshotRaw>> => {
+  try {
+    logger.debug("Fetching market index snapshot for all exchanges");
+    
+    const exchanges: ExchangeType[] = ["HOSE", "HNX", "UPCOM"];
+    const indexMap: Record<string, IndexSnapshotRaw> = {};
+    
+    const promises = exchanges.map(async (exchange) => {
+      try {
+        // Fetch index snapshot
+        const responseIndexSnaps = await axios.get<IndexSnapshotApiResponse>(
+          `/api-bsc/datafeed/indexsnaps/${exchange}`
+        );
+        
+        // Fetch chart data for the day
+        const responseChartInDay = await axios.get<ChartInDayApiResponse>(
+          `/api-bsc/datafeed/chartinday/${exchange}`
+        );
+        
+        const { d: snapData } = responseIndexSnaps.data;
+        if (Array.isArray(snapData) && snapData.length > 0) {
+          const item = snapData[0];
+          
+          // Merge chart data if available
+          if (responseChartInDay.data?.d?.[exchange]) {
+            const chartRaw = responseChartInDay.data.d[exchange];
+            const chartData = convertChartData(chartRaw);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (item as any).chartData = chartData;
+            logger.debug(`Chart data converted for ${exchange}: ${chartData.length} points`);
+          }
+          
+          indexMap[item.marketCode] = item;
+          logger.debug(`Index snapshot fetched for ${exchange}`, item);
+        }
+      } catch (error) {
+        logger.error(`Failed to fetch index data for ${exchange}`, error);
+        // Don't throw - continue with other exchanges
+      }
+    });
+    
+    await Promise.all(promises);
+    return indexMap;
+  } catch (error) {
+    logger.error("Failed to fetch index snapshots", error);
+    throw error;
+  }
+};
 
 /**
  * Fetch instruments and merge with quote data

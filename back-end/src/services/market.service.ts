@@ -22,20 +22,12 @@ class MarketService extends EventEmitter {
   private marketMap = new Map<string, MarketSnapshotItem>();
   private lastUpdateTime = new Map<string, number>();
   private symbolExchangeMap = new Map<string, string>();
+  private indexMap = new Map<string, MarketSnapshotItem>(); // Cache for market index data by exchange
+  private lastIndexUpdateTime = new Map<string, number>();
 
   constructor() {
     super();
     this.setMaxListeners(20); // Prevent memory leak warnings
-  }
-
-  // Set exchange mapping for a symbol
-  public setSymbolExchange(symbol: string, exchange: string): void {
-    this.symbolExchangeMap.set(symbol, exchange);
-  }
-
-  // Get exchange for a symbol (returns undefined if not known)
-  public getSymbolExchange(symbol: string): string | undefined {
-    return this.symbolExchangeMap.get(symbol);
   }
 
   // Load symbol-exchange mapping from BSC API
@@ -84,18 +76,40 @@ class MarketService extends EventEmitter {
     if (payload?.a !== "u" || !Array.isArray(payload.d)) {
       return;
     }
-
     const now = Date.now();
+    if (type === "idx") {
+      this.handleIndexData(payload.d, now);
+      return;
+    }
+    this.handleStockData(payload.d, now, type);
+  }
+
+
+  private handleIndexData(items: any[], timestamp: number): void {
+    items.forEach((item: any) => {
+      const exchange = item.MC; 
+      if (!exchange) return;
+
+      // Cache latest index state by exchange
+      this.indexMap.set(exchange, item);
+      this.lastIndexUpdateTime.set(exchange, timestamp);
+
+      // Emit index update for this exchange
+      this.emit("idx", item, exchange);
+    });
+  }
+
+  private handleStockData(items: any[], timestamp: number, type: MarketEventType): void {
     // Group items by exchange
     const exchangeBatches = new Map<string, MarketSnapshotItem[]>();
 
-    payload.d.forEach((item: any) => {
+    items.forEach((item: any) => {
       const symbol = this.extractSymbol(item);
       if (!symbol) return;
 
       // Cache latest state
       this.marketMap.set(symbol, item);
-      this.lastUpdateTime.set(symbol, now);
+      this.lastUpdateTime.set(symbol, timestamp);
 
       // Lookup exchange for this symbol
       const exchange = this.symbolExchangeMap.get(symbol);
@@ -116,43 +130,13 @@ class MarketService extends EventEmitter {
   }
 
   /**
-   * Get latest prices for all symbols
-   */
-  public getSnapshot(): MarketSnapshotItem[] {
-    return Array.from(this.marketMap.values());
-  }
-
-  /**
-   * Get latest price for a specific symbol
-   */
-  public getSymbolState(symbol: string): MarketSnapshotItem | undefined {
-    return this.marketMap.get(symbol);
-  }
-
-  /**
-   * Get last update time for a symbol
-   */
-  public getLastUpdateTime(symbol: string): number | undefined {
-    return this.lastUpdateTime.get(symbol);
-  }
-
-  /**
-   * Get cache statistics
-   */
-  public getStats(): { symbolCount: number; oldestUpdate: number | null } {
-    const times = Array.from(this.lastUpdateTime.values());
-    return {
-      symbolCount: this.marketMap.size,
-      oldestUpdate: times.length > 0 ? Math.min(...times) : null,
-    };
-  }
-
-  /**
    * Clear all cached data
    */
   public clear(): void {
     this.marketMap.clear();
     this.lastUpdateTime.clear();
+    this.indexMap.clear();
+    this.lastIndexUpdateTime.clear();
     logger.debug("Market cache cleared");
   }
 }

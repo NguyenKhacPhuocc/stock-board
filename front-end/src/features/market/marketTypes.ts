@@ -80,6 +80,55 @@ export interface QuotesApiResponse {
 }
 
 // ============================================================================
+// Market Index Types
+// ============================================================================
+
+/** Raw index data from /datafeed/indexsnaps/ API */
+export interface IndexSnapshotRaw {
+  tradingdate: string;
+  marketIndex: string;
+  indexTime: string;
+  indexColor: "up" | "down" | "unchanged";
+  indexChange: string;
+  indexPercentChange: string;
+  totalTrade: string;
+  totalVolume: string;
+  totalValue: string;
+  marketStatus: string; // "O" = open, "I" = interim/off, "C" = closed
+  advances: string;
+  declines: string;
+  noChange: string;
+  advancesVolumn: string;
+  declinesVolumn: string;
+  noChangeVolumn: string;
+  marketId: string;
+  marketCode: ExchangeType;
+  PRV_PRIOR_MARKET_INDEX?: string;
+  AVR_MARKET_INDEX?: string;
+  AVR_PRIOR_MARKET_INDEX?: string;
+  AVR_CHG_INDEX?: string;
+  AVR_PCT_INDEX?: string;
+  PT_TOTAL_QTTY?: string;
+  PT_TOTAL_VALUE?: string;
+  PT_TOTAL_TRADE?: string;
+  numberOfCe?: string;
+  numberOfFl?: string;
+  oddLotTotalVolume?: string;
+  oddLotTotalValue?: string;
+  ts?: number;
+  kid?: string;
+}
+
+/** Index snapshot API response */
+export interface IndexSnapshotApiResponse {
+  s: string;
+  ec: number;
+  em: string;
+  d: IndexSnapshotRaw[];
+}
+
+
+// ============================================================================
 // Normalized Stock Data (using SHORT field names)
 // ============================================================================
 
@@ -181,10 +230,8 @@ export interface MarketIndexData {
   status: "open" | "closed";
   counts: {
     up: number;
-    ceiling: number;
     reference: number;
     down: number;
-    floor: number;
   };
   chartData: {
     time: string;
@@ -202,12 +249,42 @@ export interface MarketState {
   stocks: StockInstrument[];
   entities: Record<string, StockInstrument>;
   allQuotes: NormalizedQuoteMap;
+  indices: Record<string, MarketIndexData>; // Market index by exchange
   loading: boolean;
   error: string | null;
   selectedExchange: ExchangeType;
   selectedType: string;
   highlightedSymbol: string | null;
   pinnedSymbols: string[];
+}
+
+// ============================================================================
+// Chart In Day Types
+// ============================================================================
+
+/** Chart data point for intraday chart */
+export interface ChartDataPoint {
+  time: string; // Formatted time (HH:MM:SS)
+  value: number; // Close price/index value
+  volume: number; // Trading volume
+  unixtime: number; // Unix timestamp
+}
+
+/** Raw chart in day data from /datafeed/chartinday/ API */
+export interface ChartInDayRaw {
+  formattedtime: string[]; // Array of time strings (HH:MM:SS)
+  volume: number[]; // Array of volumes
+  reference: number[]; // Array with single reference value
+  close: number[]; // Array of close prices
+  unixtime: number[]; // Array of unix timestamps
+}
+
+/** Chart in day API response (keyed by exchange) */
+export interface ChartInDayApiResponse {
+  s: string;
+  ec: number;
+  em: string;
+  d: Record<string, ChartInDayRaw>;
 }
 
 // ============================================================================

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useAppDispatch } from "@/app/hooks";
-import { batchUpdateStocks } from "./marketSlice";
+import { batchUpdateStocks, updateIndexData } from "./marketSlice";
 import io from "socket.io-client";
 import type { Socket } from "socket.io-client";
 import type { WSUpdatePayload, Logger } from "./marketTypes";
@@ -44,7 +44,7 @@ const createSocket = (): Socket => {
   return globalSocket;
 };
 
-const setupSocketListeners = (socket: Socket, onStockUpdate: (batch: any[]) => void): void => {
+const setupSocketListeners = (socket: Socket, onStockUpdate: (batch: any[]) => void, onIndexUpdate: (exchange: string, rawData: any) => void): void => {
   logger.debug("Setting up socket listeners");
 
   socket.on("connect", () => {
@@ -65,8 +65,16 @@ const setupSocketListeners = (socket: Socket, onStockUpdate: (batch: any[]) => v
     }
   });
 
-  socket.on("idx", () => {
-    logger.debug("Index update received");
+  socket.on("idx", (payload: unknown) => {
+    const data = (payload as any).d;
+    // Handle both array and object formats
+    const items = Array.isArray(data) ? data : [data];
+    items.forEach((item: any) => {
+      const exchange = item.MC; 
+      if (exchange) {
+        onIndexUpdate(exchange, item);
+      }
+    });
   });
 };
 
@@ -84,9 +92,15 @@ export const useMarketWebSocket = (exchange: string): void => {
     initRef.current = true;
 
     const socket = createSocket();
-    setupSocketListeners(socket, (batch) => {
-      dispatch(batchUpdateStocks(batch));
-    });
+    setupSocketListeners(
+      socket,
+      (batch) => {
+        dispatch(batchUpdateStocks(batch));
+      },
+      (exchange, rawData) => {
+        dispatch(updateIndexData({ exchange, rawData }));
+      }
+    );
 
     logger.debug("Market WebSocket initialized");
   }, [dispatch]);

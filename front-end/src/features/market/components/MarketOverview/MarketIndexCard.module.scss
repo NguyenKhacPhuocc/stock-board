@@ -50,25 +50,29 @@
 
         .mainInfo {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: baseline;
+            gap: 8px;
+            background-color: $bg-color;
+            padding: 4px;
+            border-radius: 4px;
 
             .indexName {
-                font-weight: bold;
-                color: #aaa;
+                color: #fff;
                 font-size: 12px;
             }
 
             .indexValue {
-                font-weight: bold;
-                font-size: 13px;
+                font-size: 11px;
             }
         }
 
         .statsRow {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             margin-top: 1px;
+            gap: 10px;
+            font-size: 11px;
 
             span {
                 white-space: nowrap;
@@ -87,7 +91,7 @@
             display: flex;
             gap: 6px;
             margin-top: 2px;
-            font-weight: 500;
+            justify-content: center;
 
             .countItem {
                 display: flex;

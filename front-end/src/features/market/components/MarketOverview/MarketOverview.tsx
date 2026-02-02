@@ -1,11 +1,12 @@
 import MarketIndexCard from "./MarketIndexCard";
-import { MOCK_MARKET_INDICES } from "@/features/market/mockMarketData";
+
+const EXCHANGES = ["HOSE", "HNX", "UPCOM"] as const;
 
 export default function MarketOverview() {
   return (
     <>
-      {MOCK_MARKET_INDICES.map(index => (
-        <MarketIndexCard key={index.id} indexData={index} />
+      {EXCHANGES.map((exchange) => (
+        <MarketIndexCard key={exchange} exchange={exchange} />
       ))}
     </>
   );

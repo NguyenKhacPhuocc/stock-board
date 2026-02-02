@@ -18,7 +18,6 @@ import type { VirtualRowData } from "../../marketTypes";
 import useMeasure from "react-use-measure";
 
 
-
 const HIGHLIGHT_TIMEOUT = 2000;
 
 const SymbolCell = memo(({ symbol, isPinned }: { symbol: string; isPinned: boolean }) => {

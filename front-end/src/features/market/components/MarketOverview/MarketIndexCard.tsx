@@ -1,15 +1,34 @@
 import styles from "./MarketIndexCard.module.scss";
 import MarketIndexChart from "./MarketIndexChart";
-import type { MarketIndexData } from "@/features/market/marketTypes";
+// import type { MarketIndexData } from "@/features/market/marketTypes";
 import clsx from "clsx";
 import { useIntl } from "react-intl";
+import { useAppSelector } from "@/app/hooks";
 
 interface Props {
-  indexData: MarketIndexData;
+  exchange: "HOSE" | "HNX" | "UPCOM";
 }
 
-export default function MarketIndexCard({ indexData }: Props) {
+export default function MarketIndexCard({ exchange }: Props) {
   const intl = useIntl();
+  const indexData = useAppSelector(
+    (state) => state.market.indices[exchange]
+  );
+
+  // Show loading state if data not available yet
+  if (!indexData) {
+    return (
+      <div className={clsx(styles.card)}>
+        <div className={styles.summary}>
+          <div className={styles.mainInfo}>
+            <div className={styles.indexName}>{exchange}</div>
+            <div className={styles.indexValue}>-</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const { name, currentValue, change, changePercent, totalVolume, totalValue, counts, chartData, color, status } = indexData;
 
   const formatNumber = (num: number) => {
@@ -17,7 +36,7 @@ export default function MarketIndexCard({ indexData }: Props) {
   };
 
   const formatVolume = (vol: number) => {
-    return new Intl.NumberFormat('en-US').format(vol);
+    return new Intl.NumberFormat('vi-VN').format(vol);
   };
 
   return (
@@ -31,7 +50,7 @@ export default function MarketIndexCard({ indexData }: Props) {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
           </button>
         </div>
-        <MarketIndexChart data={chartData} color={color} />
+        <MarketIndexChart data={chartData || []} color={color} />
       </div>
 
       <div className={styles.summary}>
@@ -44,16 +63,16 @@ export default function MarketIndexCard({ indexData }: Props) {
         </div>
 
         <div className={styles.statsRow}>
-          <span className={styles.volumeTotal}>{formatVolume(totalVolume)}</span>
+          <span className={styles.volumeTotal}>{formatVolume(totalVolume)} CP</span>
           <span className={styles.valueTotal}>
             {formatNumber(totalValue)} {intl.formatMessage({ id: 'market.billion' })}
           </span>
         </div>
 
         <div className={styles.marketCounts}>
-          <div className={clsx(styles.countItem, styles.colorCeiling)}>
+          {/* <div className={clsx(styles.countItem, styles.colorCeiling)}>
             ▲ {counts.ceiling}
-          </div>
+          </div> */}
           <div className={clsx(styles.countItem, styles.colorUp)}>
             ▲ {counts.up}
           </div>
@@ -63,9 +82,9 @@ export default function MarketIndexCard({ indexData }: Props) {
           <div className={clsx(styles.countItem, styles.colorDown)}>
             ▼ {counts.down}
           </div>
-          <div className={clsx(styles.countItem, styles.colorFloor)}>
+          {/* <div className={clsx(styles.countItem, styles.colorFloor)}>
             ▼ {counts.floor}
-          </div>
+          </div> */}
           <div className={styles.status}>
             {status === 'closed' ? intl.formatMessage({ id: 'market.closed' }) : intl.formatMessage({ id: 'market.open' })}
           </div>

@@ -1,12 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
-import { fetchAllQuotes, fetchInstrumentsByExchange } from "./marketApi";
+import { fetchAllQuotes, fetchInstrumentsByExchange, fetchIndexSnapshot } from "./marketApi";
 import type {
   StockInstrument,
   MarketState,
   ExchangeType,
   Logger,
   NormalizedQuoteMap,
+  ChartDataPoint,
 } from "./marketTypes";
 
 const getInitialExchange = (): ExchangeType => {
@@ -24,6 +26,20 @@ const createLogger = (prefix: string): Logger => ({
   },
 });
 
+/**
+ * Map market status to open/closed based on exchange type
+ * HOSE, HNX: P(pre), O(open), A(ATC), B(break), C(close), H(halt)
+ * UPCOM: 1(pre), 2(ATO), 5(open), 6(ATC), 7(close), 9(halt)
+ */
+const mapMarketStatus = (status: string, exchange: string): "open" | "closed" => {
+  // UPCOM uses numeric codes
+  if (exchange === "UPCOM" || exchange === "HNX") {
+    return status === "5" ? "open" : "closed";
+  }
+  // HOSE, HNX use letter codes
+  return status === "O" ? "open" : "closed";
+};
+
 export const initializeMarket = createAsyncThunk(
   "market/initialize",
   async (exchange: ExchangeType = "HOSE", { rejectWithValue }) => {
@@ -32,13 +48,9 @@ export const initializeMarket = createAsyncThunk(
     try {
       const allQuotes = await fetchAllQuotes();
       const stocks = await fetchInstrumentsByExchange(exchange, allQuotes);
-      logger.debug("Market initialization failed", {
-        allQuotes,
-        stocks,
-        exchange,
-      });
+      const indexSnapshot = await fetchIndexSnapshot();
       
-      return { allQuotes, stocks, exchange };
+      return { allQuotes, stocks, exchange, indexSnapshot };
     } catch (error) {
       logger.error("Market initialization failed", error);
       return rejectWithValue("Failed to initialize market");
@@ -73,6 +85,7 @@ const initialState: MarketState = {
   stocks: [],
   entities: {},
   allQuotes: new Map(),
+  indices: {}, // Market index by exchange
   loading: false,
   error: null,
   selectedExchange: getInitialExchange(),
@@ -134,6 +147,75 @@ const marketSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+
+    updateIndexData: (
+      state,
+      action: PayloadAction<{ exchange: string; rawData: any }>,
+    ) => {
+      const { exchange, rawData } = action.payload;
+      
+      // Keep previous snapshot data
+      const previousData = state.indices[exchange];
+      if (!previousData) return; // Skip if no snapshot data yet
+
+      // Validate MI field - skip chart update if missing
+      const miValue = parseFloat(rawData.MI);
+      if (isNaN(miValue) || rawData.MI === undefined || rawData.MI === null) {
+        // MI is null, skip all updates related to price data
+        state.indices[exchange] = {
+          ...previousData,
+          totalVolume: parseInt(rawData.TV, 10) || previousData.totalVolume,
+          totalValue: parseFloat(rawData.TVA) || previousData.totalValue,
+          status: mapMarketStatus(rawData.MS, exchange),
+          counts: {
+            up: rawData.ADV ? parseInt(rawData.ADV, 10) : (previousData?.counts.up ?? 0),
+            reference: rawData.NC ? parseInt(rawData.NC, 10) : (previousData?.counts.reference ?? 0),
+            down: rawData.DE ? parseInt(rawData.DE, 10) : (previousData?.counts.down ?? 0),
+          },
+        };
+        return;
+      }
+
+      const status = mapMarketStatus(rawData.MS, exchange);
+      const change = parseFloat(rawData.ICH) || 0;
+      const changePercent = parseFloat(rawData.IPC) || 0;
+      const color = change > 0 ? "up" : change < 0 ? "down" : "ref";
+
+      const newPoint: ChartDataPoint = {
+        time: rawData.IT || "",
+        value: miValue,
+        volume: 0, 
+        unixtime: Date.now(),
+      };
+
+      // Only append to chart when time changes (1 minute candle)
+      let updatedChart = previousData.chartData || [];
+      if (updatedChart.length === 0) {
+        updatedChart = [newPoint];
+      } else {
+        const lastPoint = updatedChart[updatedChart.length - 1];
+        if (lastPoint.time !== newPoint.time) {
+          updatedChart = ([...updatedChart, newPoint] as ChartDataPoint[]);
+        }
+      }
+
+      state.indices[exchange] = {
+        ...previousData,
+        currentValue: miValue,
+        change,
+        changePercent,
+        totalVolume: parseInt(rawData.TV, 10) || previousData.totalVolume,
+        totalValue: parseFloat(rawData.TVA) || previousData.totalValue,
+        status,
+        counts: {
+          up: rawData.ADV ? parseInt(rawData.ADV, 10) : (previousData?.counts.up ?? 0), // advance
+          reference: rawData.NC ? parseInt(rawData.NC, 10) : (previousData?.counts.reference ?? 0), // noChange
+          down: rawData.DE ? parseInt(rawData.DE, 10) : (previousData?.counts.down ?? 0), // decline
+        },
+        chartData: updatedChart,
+        color,
+      };
+    },
   },
 
   extraReducers: (builder) => {
@@ -143,13 +225,51 @@ const marketSlice = createSlice({
         state.error = null;
       })
       .addCase(initializeMarket.fulfilled, (state, action) => {
-        const { allQuotes, stocks } = action.payload;
+        const { allQuotes, stocks, indexSnapshot } = action.payload;
         state.allQuotes = allQuotes;
         state.stocks = stocks;
         state.entities = {};
         stocks.forEach((stock) => {
           state.entities[stock.SB] = stock;
         });
+        
+        // Process index snapshot
+        if (indexSnapshot) {
+          Object.entries(indexSnapshot).forEach(([exchange, rawData]) => {
+            const status = mapMarketStatus(rawData.marketStatus, exchange);
+            const change = parseFloat(rawData.indexChange) || 0;
+            const changePercent = parseFloat(rawData.indexPercentChange) || 0;
+            const color = change > 0 ? "up" : change < 0 ? "down" : "ref";
+            
+            const initialChart: ChartDataPoint[] = (rawData as any).chartData && Array.isArray((rawData as any).chartData)
+              ? (rawData as any).chartData as ChartDataPoint[]
+              : [{
+                  time: rawData.indexTime || "",
+                  value: parseFloat(rawData.marketIndex) || 0,
+                  volume: parseInt(rawData.totalVolume, 10) || 0,
+                  unixtime: typeof rawData.ts === 'number' ? rawData.ts : Date.now(),
+                }];
+
+            state.indices[exchange] = {
+              id: exchange,
+              name: exchange,
+              currentValue: parseFloat(rawData.marketIndex) || 0,
+              change,
+              changePercent,
+              totalVolume: parseInt(rawData.totalVolume, 10) || 0,
+              totalValue: parseFloat(rawData.totalValue) || 0,
+              status,
+              counts: {
+                up: parseInt(rawData.advances, 10) || 0,
+                reference: parseInt(rawData.noChange, 10) || 0,
+                down: parseInt(rawData.declines, 10) || 0,
+              },
+              chartData: initialChart,
+              color,
+            };
+          });
+        }
+        
         state.loading = false;
       })
       .addCase(initializeMarket.rejected, (state, action) => {
@@ -183,6 +303,7 @@ export const {
   togglePin,
   setHighlightedSymbol,
   clearError,
+  updateIndexData,
 } = marketSlice.actions;
 
 export default marketSlice.reducer;

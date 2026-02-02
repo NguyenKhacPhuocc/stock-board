@@ -116,6 +116,7 @@ const handleSocketConnection = (socket: AuthenticatedSocket) => {
       socket.leave(`e:${exchange}`);
 
       subscriptionManager.unsubscribeFromExchange(clientId, exchange);
+      
 
       logger.debug("Exchange unsubscription processed", {
         clientId,
@@ -169,18 +170,17 @@ export const initSocket = (server: HttpServer) => {
 
       // emit to room, even if no clients connected (for future subscribers to catch)
       io.to(room).emit("i", { a: "u", d: batch });
-      logger.debug(
-        `Emitted ${batch.length} stocks to room ${room} (${socketCount} clients)`,
-      );
     } else {
       // Fallback: broadcast to all (for unknown symbols)
       io.emit("i", { a: "u", d: batch });
     }
   });
 
-  marketService.on("idx", (batch) => {
-    // Indices are broadcast to everyone
-    io.emit("idx", { a: "u", d: batch });
+  marketService.on("idx", (item, exchange) => {
+    // Collect idx items from all exchanges and emit as batch
+    // Or emit each one as separate event with exchange info
+    logger.debug("Index update received", { exchange, item });
+    io.emit("idx", { a: "u", d: item });
   });
 
   io.on("connection", handleSocketConnection);

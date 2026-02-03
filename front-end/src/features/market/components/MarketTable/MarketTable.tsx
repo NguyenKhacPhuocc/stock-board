@@ -1,5 +1,4 @@
 import { memo, useEffect, useMemo, useRef } from "react";
-import type { CSSProperties } from "react";
 import { useIntl } from "react-intl";
 import clsx from "clsx";
 import { PinIcon } from "lucide-react";
@@ -8,41 +7,19 @@ import { setHighlightedSymbol, togglePin } from "../../marketSlice";
 import {
   selectPinnedFilteredStockSymbols,
   selectUnpinnedFilteredStockSymbols,
-  selectHighlightedSymbol
+  selectHighlightedSymbol,
+  makeSelectCell
 } from "../../marketSelectors";
-import { getColorClass } from "../../marketUtils";
 import MarketCell from "./MarketCell";
 import styles from "./MarketTable.module.scss";
 import { FixedSizeList as List, type ListChildComponentProps } from "react-window";
-import type { VirtualRowData } from "../../marketTypes";
+import type { StockRowProps, SymbolCellProps, VirtualRowData } from "../../marketTypes";
 import useMeasure from "react-use-measure";
+import { HIGHLIGHT_TIMEOUT } from "@/constants/exchanges";
 
-
-const HIGHLIGHT_TIMEOUT = 2000;
-
-const SymbolCell = memo(({ symbol, isPinned }: { symbol: string; isPinned: boolean }) => {
+const SymbolCell = memo(({ symbol, symbolColorClass, isPinned }: SymbolCellProps) => {
   const dispatch = useAppDispatch();
   const intl = useIntl();
-
-  const { RE, CL, FL, CP } = useAppSelector(
-    state => {
-      const stock = state.market.entities[symbol];
-      return {
-        RE: stock?.RE || 0,
-        CL: stock?.CL || 0,
-        FL: stock?.FL || 0,
-        CP: stock?.CP
-      };
-    },
-    (prev, next) => (
-      prev.RE === next.RE &&
-      prev.CL === next.CL &&
-      prev.FL === next.FL &&
-      prev.CP === next.CP
-    )
-  );
-
-  const colorCode = getColorClass(CP || RE, RE, CL, FL);
 
   const handlePinToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -57,29 +34,29 @@ const SymbolCell = memo(({ symbol, isPinned }: { symbol: string; isPinned: boole
       >
         <title>{intl.formatMessage({ id: 'market.pin' })}</title>
       </PinIcon>
-      <span className={colorCode}>{symbol}</span>
+      <span className={symbolColorClass}>{symbol}</span>
     </div>
   );
 }, (prevProps, nextProps) => {
-  // Custom equality: only re-render if symbol or isPinned changed
-  return prevProps.symbol === nextProps.symbol && prevProps.isPinned === nextProps.isPinned;
+  return (
+    prevProps.symbol === nextProps.symbol &&
+    prevProps.symbolColorClass === nextProps.symbolColorClass &&
+    prevProps.isPinned === nextProps.isPinned
+  );
 });
-
-SymbolCell.displayName = 'SymbolCell';
 
 const StockRow = memo(({
   symbol,
   isHighlighted,
   isPinned,
   style,
-}: {
-  symbol: string;
-  isHighlighted: boolean;
-  isPinned: boolean;
-  style?: CSSProperties;
-}) => {
+}: StockRowProps) => {
   const rowRef = useRef<HTMLDivElement>(null);
   const dispatch = useAppDispatch();
+
+  // Get CP color for symbol cell
+  const selectCPColor = useMemo(() => makeSelectCell(symbol, 'CP', 'price'), [symbol]);
+  const cpData = useAppSelector(selectCPColor);
 
   useEffect(() => {
     if (!isHighlighted || !rowRef.current) return;
@@ -100,14 +77,18 @@ const StockRow = memo(({
         isPinned && styles.rowPinned
       )}
     >
-      <SymbolCell symbol={symbol} isPinned={isPinned} />
+      <SymbolCell
+        symbol={symbol}
+        symbolColorClass={cpData.colorClass}
+        isPinned={isPinned}
+      />
 
-      {/* Static-price columns */}
+      {/* Static-price columns (RE, CL, FL - no useSelector needed) */}
       <MarketCell symbol={symbol} field="RE" type="price" fixedColorClass={styles.colorRef} />
       <MarketCell symbol={symbol} field="CL" type="price" fixedColorClass={styles.colorCeiling} />
       <MarketCell symbol={symbol} field="FL" type="price" fixedColorClass={styles.colorFloor} />
 
-      {/* Buy Side - Vol cells color depends on their Price counterparts */}
+      {/* Buy Side */}
       <MarketCell symbol={symbol} field="B3" type="price" />
       <MarketCell symbol={symbol} field="V3" type="vol" colorField="B3" />
       <MarketCell symbol={symbol} field="B2" type="price" />
@@ -115,11 +96,11 @@ const StockRow = memo(({
       <MarketCell symbol={symbol} field="B1" type="price" />
       <MarketCell symbol={symbol} field="V1" type="vol" colorField="B1" />
 
-      {/* Matching - All color depends on CP (closePrice) */}
+      {/* Matching */}
       <MarketCell symbol={symbol} field="CP" type="price" />
       <MarketCell symbol={symbol} field="CV" type="vol" colorField="CP" />
-      <MarketCell symbol={symbol} field="CH" type="change" colorField="CP" isCalculated />
-      <MarketCell symbol={symbol} field="CHP" type="percent" colorField="CP" isCalculated />
+      <MarketCell symbol={symbol} field="CH" type="change" colorField="CP"/>
+      <MarketCell symbol={symbol} field="CHP" type="percent" colorField="CP"/>
 
       {/* Sell Side */}
       <MarketCell symbol={symbol} field="S1" type="price" />
@@ -137,14 +118,12 @@ const StockRow = memo(({
     </div>
   );
 }, (prevProps, nextProps) => {
-  // Custom equality: only re-render if symbol, isHighlighted or isPinned changed
   return (
     prevProps.symbol === nextProps.symbol &&
     prevProps.isHighlighted === nextProps.isHighlighted &&
     prevProps.isPinned === nextProps.isPinned
   );
 });
-
 
 const TableHeader = memo(() => {
   const intl = useIntl();
@@ -182,7 +161,7 @@ const TableHeader = memo(() => {
   );
 });
 
-const VirtualRow = memo(({ index, style, data }: ListChildComponentProps< VirtualRowData>) => {
+const VirtualRow = memo(({ index, style, data }: ListChildComponentProps<VirtualRowData>) => {
   const sym = data.unpinnedSymbols[index];
 
   return (
@@ -195,9 +174,10 @@ const VirtualRow = memo(({ index, style, data }: ListChildComponentProps< Virtua
   );
 });
 
-VirtualRow.displayName = 'VirtualRow';
+SymbolCell.displayName = 'SymbolCell';
 StockRow.displayName = 'StockRow';
 TableHeader.displayName = 'TableHeader';
+VirtualRow.displayName = 'VirtualRow';
 
 export default function MarketTable() {
   const highlightedSymbol = useAppSelector(selectHighlightedSymbol);
@@ -208,7 +188,7 @@ export default function MarketTable() {
     unpinnedSymbols,
     highlightedSymbol
   }), [unpinnedSymbols, highlightedSymbol]);
-  
+
   const [ref, bounds] = useMeasure();
 
   useEffect(() => {

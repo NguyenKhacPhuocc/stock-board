@@ -3,6 +3,8 @@
  * All type definitions for market feature
  */
 
+import type { CSSProperties } from "react";
+
 // ============================================================================
 // Exchange & Symbol Types
 // ============================================================================
@@ -297,14 +299,6 @@ export interface WSUpdatePayload {
   d: StockInstrument[];
 }
 
-/** Subscription acknowledgment from server */
-export interface SubscriptionAck {
-  status: "ok" | "error";
-  message?: string;
-  subscribed?: number;
-  unsubscribed?: number;
-}
-
 // ============================================================================
 // Utility Types
 // ============================================================================
@@ -315,9 +309,6 @@ export interface Logger {
   error: (msg: string, error?: unknown) => void;
 }
 
-/** Stock data listener callback */
-export type StockListener = (data: StockInstrument) => void;
-
 // ============================================================================
 // UI Component Types
 // ============================================================================
@@ -325,22 +316,40 @@ export type StockListener = (data: StockInstrument) => void;
 /** Cell display type for market table */
 export type CellType = "price" | "vol" | "percent" | "change" | "text";
 
-/** Field value type for market data */
-export type FieldValue = number | string | undefined;
-
-/** Props for MarketCell component */
-export interface MarketCellProps {
-  symbol: string;
-  field: string;
-  type?: CellType;
-  className?: string;
-  fixedColorClass?: string;
-  colorField?: string;
-  isCalculated?: boolean;
-}
-
-
 export type VirtualRowData = {
   unpinnedSymbols: string[];
   highlightedSymbol: string | null;
 };
+
+export type CellColorType = "up" | "down" | "ref" | "ceiling" | "floor";
+
+
+export interface CellData {
+  value: string;
+  colorClass: string;
+  colorType?: CellColorType;
+  rawValue?: unknown;
+}
+
+export interface StockRowProps {
+  symbol: string;
+  isHighlighted: boolean;
+  isPinned: boolean;
+  style?: CSSProperties;
+}
+
+
+export interface SymbolCellProps {
+  symbol: string;
+  symbolColorClass: string;
+  isPinned: boolean;
+}
+
+export interface MarketCellProps {
+  symbol: string;
+  field: string;
+  type?: CellType;
+  colorField?: string;
+  fixedColorClass?: string;
+  className?: string;
+}

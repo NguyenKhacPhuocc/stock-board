@@ -189,3 +189,23 @@
     transform: rotate(45deg);
   }
 }
+
+.colorRef{
+  color: $color-ref !important;
+}
+
+.colorCeiling {
+  color: $color-ceil !important;
+}
+
+.colorFloor {
+  color: $color-floor !important;
+}
+
+.colorUp {
+  color: $color-up !important;
+}
+
+.colorDown {
+  color: $color-down !important;
+}

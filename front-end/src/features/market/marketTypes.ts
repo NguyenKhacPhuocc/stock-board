@@ -241,6 +241,7 @@ export interface MarketIndexData {
     volume: number;
   }[];
   color: "up" | "down" | "ref";
+  currentPointVolume: number; // Track volume of current (open) candle
 }
 
 // ============================================================================

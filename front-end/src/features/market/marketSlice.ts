@@ -150,18 +150,15 @@ const marketSlice = createSlice({
 
     updateIndexData: (
       state,
-      action: PayloadAction<{ exchange: string; rawData: any }>,
+      action: PayloadAction<{ exchange: ExchangeType; rawData: any }>,
     ) => {
       const { exchange, rawData } = action.payload;
       
-      // Keep previous snapshot data
       const previousData = state.indices[exchange];
-      if (!previousData) return; // Skip if no snapshot data yet
+      if (!previousData) return;
 
-      // Validate MI field - skip chart update if missing
       const miValue = parseFloat(rawData.MI);
       if (isNaN(miValue) || rawData.MI === undefined || rawData.MI === null) {
-        // MI is null, skip all updates related to price data
         state.indices[exchange] = {
           ...previousData,
           totalVolume: parseInt(rawData.TV, 10) || previousData.totalVolume,
@@ -181,21 +178,39 @@ const marketSlice = createSlice({
       const changePercent = parseFloat(rawData.IPC) || 0;
       const color = change > 0 ? "up" : change < 0 ? "down" : "ref";
 
+      const normalizedTime = (rawData.IT || "").substring(0, 5);
       const newPoint: ChartDataPoint = {
-        time: rawData.IT || "",
+        time: normalizedTime,
         value: miValue,
-        volume: 0, 
+        volume: 0,
         unixtime: Date.now(),
       };
 
-      // Only append to chart when time changes (1 minute candle)
+      const currentTotalVolume = parseInt(rawData.TV, 10) || 0;
+      const previousTotalVolume = previousData.totalVolume || 0;
+      const volumeIncoming = Math.max(0, currentTotalVolume - previousTotalVolume);
+
       let updatedChart = previousData.chartData || [];
+      let currentPointVolume = previousData.currentPointVolume || 0;
+
       if (updatedChart.length === 0) {
-        updatedChart = [newPoint];
+        // First candle: start with incoming volume
+        updatedChart = [{ ...newPoint, volume: volumeIncoming }];
+        currentPointVolume = volumeIncoming;
       } else {
         const lastPoint = updatedChart[updatedChart.length - 1];
-        if (lastPoint.time !== newPoint.time) {
-          updatedChart = ([...updatedChart, newPoint] as ChartDataPoint[]);
+        const timeChanged = lastPoint.time !== normalizedTime;
+
+        if (timeChanged) {
+          // Minute changed: close previous candle, start new one
+          currentPointVolume += volumeIncoming;
+          lastPoint.volume = Math.max(0, currentPointVolume);
+          updatedChart.push(newPoint);
+          currentPointVolume = 0;
+        } else {
+          // Same minute: accumulate volume
+          currentPointVolume += volumeIncoming;
+          lastPoint.volume = currentPointVolume;
         }
       }
 
@@ -204,16 +219,17 @@ const marketSlice = createSlice({
         currentValue: miValue,
         change,
         changePercent,
-        totalVolume: parseInt(rawData.TV, 10) || previousData.totalVolume,
+        totalVolume: currentTotalVolume,
         totalValue: parseFloat(rawData.TVA) || previousData.totalValue,
         status,
         counts: {
-          up: rawData.ADV ? parseInt(rawData.ADV, 10) : (previousData?.counts.up ?? 0), // advance
-          reference: rawData.NC ? parseInt(rawData.NC, 10) : (previousData?.counts.reference ?? 0), // noChange
-          down: rawData.DE ? parseInt(rawData.DE, 10) : (previousData?.counts.down ?? 0), // decline
+          up: rawData.ADV ? parseInt(rawData.ADV, 10) : (previousData?.counts.up ?? 0),
+          reference: rawData.NC ? parseInt(rawData.NC, 10) : (previousData?.counts.reference ?? 0),
+          down: rawData.DE ? parseInt(rawData.DE, 10) : (previousData?.counts.down ?? 0),
         },
         chartData: updatedChart,
         color,
+        currentPointVolume,
       };
     },
   },
@@ -266,6 +282,7 @@ const marketSlice = createSlice({
               },
               chartData: initialChart,
               color,
+              currentPointVolume: 0, // Track volume of current (open) candle
             };
           });
         }

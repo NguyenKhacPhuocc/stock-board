@@ -53,6 +53,41 @@ function MarketIndexChart({ data, color }: Props) {
       theme: 'light',
       shared: true,
       cssClass: styles.tooltip,
+      custom: ({ dataPointIndex, w }: { dataPointIndex: number; w: Record<string, unknown> }) => {
+        const config = w.config as { series: Array<{ data: Array<{ x: number; y: number }> }> };
+        const timestamp = config?.series?.[0]?.data?.[dataPointIndex]?.x;
+        
+        if (!timestamp) return '';
+
+        // Format time as HH:MM:SS
+        const date = new Date(timestamp);
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        const timeStr = `${hours}:${minutes}:${seconds}`;
+
+        // Get index and volume values
+        const indexValue = config?.series?.[0]?.data?.[dataPointIndex]?.y || 0;
+        const volumeValue = config?.series?.[1]?.data?.[dataPointIndex]?.y || 0;
+
+        // Format volume with vi-VN locale
+        const volumeFormatted = new Intl.NumberFormat('vi-VN', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(volumeValue);
+
+        return `
+          <div style="padding: 12px; background: #fff; border-radius: 4px; border: 1px solid #ddd; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+            <div style="margin-bottom: 6px; font-weight: 600; color: #333;">${timeStr}</div>
+            <div style="margin-bottom: 4px; font-size: 12px; color: #666;">
+              <span style="color: ${chartColor};">● Index:</span> <span style="font-weight: 500; color: #000;">${indexValue.toFixed(2)}</span>
+            </div>
+            <div style="font-size: 12px; color: #666;">
+              <span style="color: #60a0ff;">● Volume:</span> <span style="font-weight: 500; color: #000;">${volumeFormatted}</span>
+            </div>
+          </div>
+        `;
+      },
       style: {
         fontSize: '12px',
       },
@@ -60,7 +95,7 @@ function MarketIndexChart({ data, color }: Props) {
     legend: {
       show: false,
     },
-    colors: [chartColor, "rgba(100, 150, 255, 0.4)"],
+    colors: [chartColor, "rgba(96, 160, 255, 0.75)"],
     grid: {
       show: true,
       borderColor: "#222",

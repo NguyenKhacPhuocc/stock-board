@@ -1,7 +1,7 @@
 import { createSelector } from "@reduxjs/toolkit";
 import type { RootState } from "@/app/store";
-import type { CellColorType, CellData, StockInstrument } from "./marketTypes";
-import { formatPrice, formatVol, formatChange, formatPercent, getColorClass } from "./marketUtils";
+import type { CellData, StockInstrument } from "./marketTypes";
+import { getColorClass, formatCellValue, computeColorType } from "./marketUtils";
 import type { CellType } from "./marketTypes";
 
 export const selectMarketStocks = (state: RootState) => state.market.stocks;
@@ -89,43 +89,6 @@ export const selectUnpinnedFilteredStockSymbols = createSelector(
   [selectUnpinnedFilteredStocks],
   (stocks): string[] => stocks.map((s) => s.SB || s.symbol || ""),
 );
-
-function computeColorType(
-  price: number | undefined | null,
-  ref: number | undefined,
-  ceil: number | undefined,
-  floor: number | undefined
-): CellColorType {
-  if (!price || !ref) return "ref";
-
-  const p = Number(price);
-  const r = Number(ref);
-  const c = Number(ceil) || 0;
-  const f = Number(floor) || 0;
-
-  if (Math.abs(p - c) < 0.001) return "ceiling";
-  if (Math.abs(p - f) < 0.001) return "floor";
-  if (p > r) return "up";
-  if (p < r) return "down";
-  return "ref";
-}
-
-function formatCellValue(raw: unknown, type: CellType): string {
-  if (raw === undefined || raw === null) return "";
-
-  switch (type) {
-    case "price":
-      return formatPrice(raw as number | string);
-    case "vol":
-      return formatVol(raw as number | string);
-    case "change":
-      return formatChange(raw as number | string);
-    case "percent":
-      return formatPercent(raw as number | string);
-    default:
-      return String(raw);
-  }
-}
 
 export const makeSelectCell = (
   symbol: string,

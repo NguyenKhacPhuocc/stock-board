@@ -1,4 +1,5 @@
 import styles from "./components/MarketOverview/MarketIndexCard.module.scss";
+import type { CellColorType, CellType } from "./marketTypes";
 
 type PriceValue = number | string | undefined | null;
 
@@ -63,3 +64,40 @@ export const getColorClass = (
   if (p < r) return styles.colorDown;
   return styles.colorRef;
 };
+
+export const  computeColorType = (
+  price: number | undefined | null,
+  ref: number | undefined,
+  ceil: number | undefined,
+  floor: number | undefined
+): CellColorType => {
+  if (!price || !ref) return "ref";
+
+  const p = Number(price);
+  const r = Number(ref);
+  const c = Number(ceil) || 0;
+  const f = Number(floor) || 0;
+
+  if (Math.abs(p - c) < 0.001) return "ceiling";
+  if (Math.abs(p - f) < 0.001) return "floor";
+  if (p > r) return "up";
+  if (p < r) return "down";
+  return "ref";
+}
+
+export const formatCellValue = (raw: unknown, type: CellType): string => {
+  if (raw === undefined || raw === null) return "";
+
+  switch (type) {
+    case "price":
+      return formatPrice(raw as number | string);
+    case "vol":
+      return formatVol(raw as number | string);
+    case "change":
+      return formatChange(raw as number | string);
+    case "percent":
+      return formatPercent(raw as number | string);
+    default:
+      return String(raw);
+  }
+}

@@ -1,3 +1,4 @@
+import { HIGHLIGHT_TIMEOUT } from "@/constants/exchanges";
 import { useRef, useEffect, useState } from "react";
 
 
@@ -25,12 +26,18 @@ export function useFlashAnimation(compareValue: unknown, triggerDeps: unknown[] 
       clearTimeout(flashTimeoutRef.current);
     }
 
-    // Start flash in next frame
-    requestAnimationFrame(() => setIsFlashing(true));
+    // Reset highlight state to ensure re-render on every update
+    setIsFlashing(false);
 
+    // Start flash animation in next frame
+    requestAnimationFrame(() => {
+      setIsFlashing(true);
+    });
+
+    // Turn off highlight after 2000ms (HIGHLIGHT_TIMEOUT)
     flashTimeoutRef.current = setTimeout(() => {
       setIsFlashing(false);
-    }, 1000);
+    }, HIGHLIGHT_TIMEOUT);
 
     return () => {
       if (flashTimeoutRef.current) {

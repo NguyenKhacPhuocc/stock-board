@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 declare module "socket.io-client" {
   export interface Socket {
+    off: any;
     connected: boolean;
     id: string;
     on(event: string, callback: (...args: unknown[]) => void): this;

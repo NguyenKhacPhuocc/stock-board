@@ -1,20 +1,21 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef } from "react";
 import { useAppDispatch } from "@/app/hooks";
 import { batchUpdateStocks, updateIndexData } from "./marketSlice";
-import io from "socket.io-client";
-import type { Socket } from "socket.io-client";
-import type { WSUpdatePayload, Logger } from "./marketTypes";
+import io, { type Socket } from "socket.io-client";
+import type { WSUpdatePayload, Logger, ExchangeType } from "./marketTypes";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+const SOCKET_URL =
+  import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
+let socketInstance: Socket | null = null;
+let channel: BroadcastChannel | null = null;
 
 const SOCKET_CONFIG = {
-  transports: ["websocket", "polling"],
+  transports: ["websocket"],
   reconnection: true,
   reconnectionDelay: 1000,
   reconnectionDelayMax: 5000,
-  reconnectionAttempts: Infinity,
   timeout: 20000,
   auth: {
     token:
@@ -24,108 +25,165 @@ const SOCKET_CONFIG = {
   },
 };
 
-const logger: Logger = {
-  debug: (msg: string, data?: unknown): void => {
-    console.log(`[MarketWS] ${msg}`, data || "");
-  },
-  error: (msg: string, error?: unknown): void => {
-    console.error(`[MarketWS] ${msg}`, error || "");
-  },
-};
-
-// Global singleton socket instance
-let globalSocket: Socket | null = null;
-
-const createSocket = (): Socket => {
-  if (!globalSocket) {
-    globalSocket = io(SOCKET_URL, SOCKET_CONFIG);
-    logger.debug("Socket created", { socketId: globalSocket.id });
+const getSocket = (): Socket => {
+  if (!socketInstance) {
+    socketInstance = io(SOCKET_URL, SOCKET_CONFIG);
   }
-  return globalSocket;
+  return socketInstance;
 };
 
-const setupSocketListeners = (socket: Socket, onStockUpdate: (batch: any[]) => void, onIndexUpdate: (exchange: string, rawData: any) => void): void => {
-  logger.debug("Setting up socket listeners");
-
-  socket.on("connect", () => {
-    logger.debug("Connected to server", { socketId: socket.id });
-  });
-
-  socket.on("disconnect", (reason: unknown) => {
-    logger.debug("Disconnected from server", { reason });
-  });
-
-  socket.on("connect_error", (error: any) => {
-    logger.error("Connection error", error?.message);
-  });
-
-  socket.on("i", (payload: unknown) => {
-    if (isValidUpdate(payload)) {
-      onStockUpdate(payload.d);
-    }
-  });
-
-  socket.on("idx", (payload: unknown) => {
-    const data = (payload as any).d;
-    const items = Array.isArray(data) ? data : [data];
-    items.forEach((item: any) => {
-      const exchange = item.MC; 
-      if (exchange) {
-        onIndexUpdate(exchange, item);
-      }
-    });
-  });
+const getChannel = (): BroadcastChannel => {
+  if (!channel) {
+    channel = new BroadcastChannel("market-ws");
+  }
+  return channel;
 };
 
-const isValidUpdate = (payload: any): payload is WSUpdatePayload => {
-  return payload?.a === "u" && Array.isArray(payload.d);
+const logger: Logger = {
+  debug: (msg: string, data?: unknown) => {
+    console.log("[MarketWS]", msg, data ?? "");
+  },
+  error: (msg: string, err?: unknown) => {
+    console.error("[MarketWS]", msg, err ?? "");
+  },
 };
 
-export const useMarketWebSocket = (exchange: string): void => {
+const isValidUpdate = (p: any): p is WSUpdatePayload => {
+  return p && Array.isArray(p.d);
+};
+
+// Track subscription count per exchange across all tabs
+const subscriptionCount: Map<ExchangeType, number> = new Map();
+
+export const useMarketWebSocket = (exchange: ExchangeType): void => {
   const dispatch = useAppDispatch();
-  const initRef = useRef(false);
+  const currentExchangeRef = useRef<ExchangeType | null>(null);
 
-  // Initialize socket and listeners (runs once on mount)
+  /* -------- init socket + listen events (all tabs independently) -------- */
   useEffect(() => {
-    if (initRef.current) return;
-    initRef.current = true;
+    const socket = getSocket();
 
-    const socket = createSocket();
-    setupSocketListeners(
-      socket,
-      (batch) => {
-        dispatch(batchUpdateStocks(batch));
-      },
-      (exchange, rawData) => {
-        dispatch(updateIndexData({ exchange, rawData }));
+    const onStock = (payload: any) => {
+      if (isValidUpdate(payload)) {
+        dispatch(batchUpdateStocks(payload.d));
       }
-    );
-
-    logger.debug("Market WebSocket initialized");
-  }, [dispatch]);
-
-  // Handle exchange subscription
-  useEffect(() => {
-    const socket = globalSocket;
-    if (!socket) return;
-
-    const handleExchangeSubscribe = () => {
-      socket.emit("subscribe", { exchange });
     };
 
-    if (socket.connected) {
-      handleExchangeSubscribe();
-    } else {
-      socket.on("connect", handleExchangeSubscribe);
-    }
+    const onIndex = (payload: any) => {
+      const items = Array.isArray(payload?.d) ? payload.d : [payload?.d];
+      items.forEach((item: any) => {
+        if (item?.MC) {
+          dispatch(
+            updateIndexData({
+              exchange: item.MC,
+              rawData: item,
+            })
+          );
+        }
+      });
+    };
+
+    socket.on("i", onStock);
+    socket.on("idx", onIndex);
 
     return () => {
-      if (socket.connected) {
-        socket.emit("unsubscribe", { exchange });
+      socket.off("i", onStock);
+      socket.off("idx", onIndex);
+    };
+  }, [dispatch]);
+
+  /* -------- handle subscription count via BroadcastChannel -------- */
+  useEffect(() => {
+    const ch = getChannel();
+
+    const handleMessage = (event: MessageEvent) => {
+      const { type, exchange } = event.data;
+
+      if (type === "subscribe:add") {
+        subscriptionCount.set(exchange, (subscriptionCount.get(exchange) ?? 0) + 1);
+        logger.debug("subscription count", { exchange, count: subscriptionCount.get(exchange) });
+      } else if (type === "subscribe:remove") {
+        const count = subscriptionCount.get(exchange) ?? 0;
+        const newCount = Math.max(0, count - 1);
+        if (newCount > 0) {
+          subscriptionCount.set(exchange, newCount);
+        } else {
+          subscriptionCount.delete(exchange);
+        }
+        logger.debug("subscription count", { exchange, count: subscriptionCount.get(exchange) });
+      }
+    };
+
+    ch.addEventListener("message", handleMessage);
+    return () => ch.removeEventListener("message", handleMessage);
+  }, []);
+
+  /* -------- subscribe / unsubscribe exchange (refcount per tab) -------- */
+  useEffect(() => {
+    const socket = getSocket();
+    if (!exchange) return;
+
+    const next = exchange.toUpperCase() as ExchangeType;
+    const prev = currentExchangeRef.current;
+
+    if (prev === next) return;
+
+    if (prev) {
+      // Update count immediately for this tab
+      const count = subscriptionCount.get(prev) ?? 1;
+      const newCount = Math.max(0, count - 1);
+      if (newCount > 0) {
+        subscriptionCount.set(prev, newCount);
+      } else {
+        subscriptionCount.delete(prev);
+      }
+
+      // Notify other tabs that we're unsubscribing
+      getChannel().postMessage({ type: "subscribe:remove", exchange: prev });
+
+      // Only emit unsubscribe if no other tabs are subscribed
+      if (newCount === 0) {
+        socket.emit("unsubscribe", { exchange: prev });
+        logger.debug("unsubscribed", prev);
+      } else {
+        logger.debug("skipped unsubscribe (other tabs still subscribed)", { exchange: prev, count: newCount });
+      }
+    }
+
+    // Update count immediately for this tab
+    subscriptionCount.set(next, (subscriptionCount.get(next) ?? 0) + 1);
+
+    // Notify other tabs that we're subscribing
+    getChannel().postMessage({ type: "subscribe:add", exchange: next });
+
+    socket.emit("subscribe", { exchange: next });
+    logger.debug("subscribed", next);
+    currentExchangeRef.current = next;
+
+    return () => {
+      if (currentExchangeRef.current === next) {
+        // Update count immediately for this tab
+        const count = subscriptionCount.get(next) ?? 1;
+        const newCount = Math.max(0, count - 1);
+        if (newCount > 0) {
+          subscriptionCount.set(next, newCount);
+        } else {
+          subscriptionCount.delete(next);
+        }
+
+        // Notify other tabs that we're unsubscribing
+        getChannel().postMessage({ type: "subscribe:remove", exchange: next });
+
+        // Only emit unsubscribe if no other tabs are subscribed
+        if (newCount === 0) {
+          socket.emit("unsubscribe", { exchange: next });
+          logger.debug("unsubscribed", next);
+        } else {
+          logger.debug("skipped unsubscribe on unmount (other tabs still subscribed)", { exchange: next, count: newCount });
+        }
+
+        currentExchangeRef.current = null;
       }
     };
   }, [exchange]);
 };
-
-export const MarketWS = useMarketWebSocket;
-export default useMarketWebSocket;

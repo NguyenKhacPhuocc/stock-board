@@ -22,13 +22,11 @@ class SubscriptionManager {
     let client = this.clientSubscriptions.get(clientId);
     const previousExchange = client?.exchange;
 
+    // If already subscribed to the same exchange, do nothing
+    if (previousExchange === exchange) return; 
+
     // Unsubscribe from previous exchange if different
     if (previousExchange && previousExchange !== exchange) {
-      this.logger.debug('Client switching exchanges', { 
-        clientId, 
-        from: previousExchange, 
-        to: exchange 
-      });
       this.unsubscribeFromExchange(clientId, previousExchange);
     }
 

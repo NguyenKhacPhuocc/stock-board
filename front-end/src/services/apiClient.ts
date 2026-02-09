@@ -1,6 +1,4 @@
 /**
- * API Client - Wrapper around axios instance with auto-refresh
- * 
  * Usage:
  * import { apiClient } from '@/services/apiClient';
  * 

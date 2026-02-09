@@ -2,10 +2,6 @@
 import viMessages from '@/locales/vi.json';
 import enMessages from '@/locales/en.json';
 
-/**
- * transform function object nested to flat object
- * example: { login: { title: "A" } } => { "login.title": "A" }
- */
 const flattenMessages = (nestedMessages: any, prefix = '') => {
   if (nestedMessages === null) return {};
 

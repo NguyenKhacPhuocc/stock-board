@@ -32,8 +32,6 @@ class MarketService extends EventEmitter {
 
   // Load symbol-exchange mapping from BSC API
   public async loadSymbolExchangeMapping(): Promise<void> {
-    logger.debug("Loading symbol-exchange mapping from BSC API");
-    
     const promises = EXCHANGES.map(async (exchange) => {
       try {
         const response = await axios.get(

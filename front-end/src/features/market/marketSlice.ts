@@ -26,11 +26,6 @@ const createLogger = (prefix: string): Logger => ({
   },
 });
 
-/**
- * Map market status to open/closed based on exchange type
- * HOSE, HNX: P(pre), O(open), A(ATC), B(break), C(close), H(halt)
- * UPCOM: 1(pre), 2(ATO), 5(open), 6(ATC), 7(close), 9(halt)
- */
 const mapMarketStatus = (status: string, exchange: string): "open" | "closed" => {
   // UPCOM uses numeric codes
   if (exchange === "UPCOM" || exchange === "HNX") {

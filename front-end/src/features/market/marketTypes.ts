@@ -10,7 +10,6 @@ import type { CSSProperties } from "react";
 // ============================================================================
 
 export type ExchangeType = "HOSE" | "HNX" | "UPCOM";
-export type MarketSymbolType = "STOCK" | "WARRANT" | "ETF" | "ALL";
 
 // ============================================================================
 // Raw API Response Types (before normalization)

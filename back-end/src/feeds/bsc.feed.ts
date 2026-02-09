@@ -13,8 +13,7 @@ const logger = {
 
 export class BSCFeed {
   private bscSocket: any;
-  private readonly BSC_URL =
-    process.env.BSC_SOCKET_URL || "wss://priceapi.bsc.com.vn";
+  private readonly BSC_URL = process.env.BSC_SOCKET_URL || "wss://priceapi.bsc.com.vn";
   private reconnectAttempts = 0;
   private readonly maxReconnectAttempts = 10;
   private readonly baseReconnectDelay = 1000; // 1 second

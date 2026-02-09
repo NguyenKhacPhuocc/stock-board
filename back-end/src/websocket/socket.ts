@@ -54,48 +54,49 @@ const authMiddleware = (
 const handleSocketConnection = (socket: AuthenticatedSocket) => {
   const clientId = socket.id;
 
-  socket.on("subscribe", (data: { exchange: string }, ack?: (msg: any) => void) => {
-      if (!data?.exchange) {
-        if (ack) ack({ status: "error", message: "Exchange is required" });
-        return;
-      }
-      const exchange = data.exchange.toUpperCase();
-      const validExchanges = EXCHANGES;
+  socket.on("subscribe", (data, ack) => {
+    const exchange = data?.exchange?.toUpperCase();
 
-      if (!validExchanges.includes(exchange)) {
-        if (ack) ack({ status: "error", message: "Invalid exchange" });
-        return;
-      }
+    if (!exchange || !EXCHANGES.includes(exchange)) {
+      ack?.({ status: "error", message: "Invalid exchange" });
+      return;
+    }
 
-      // Leave all previous exchange rooms
-      validExchanges.forEach((ex) => {
-        socket.leave(`e:${ex}`);
-      });
+    const prev = socket.data.exchange;
+    if (prev === exchange) {
+      ack?.({ status: "ok", exchange });
+      return;
+    }
 
-      // Join new exchange room
-      socket.join(`e:${exchange}`);
+    socket.join(`e:${exchange}`);
 
-      subscriptionManager.subscribeToExchange(clientId, exchange);
+    subscriptionManager.subscribeToExchange(socket.id, exchange);
 
-      if (ack) ack({ status: "ok", exchange });
-    },
-  );
+    if (prev) {
+      socket.leave(`e:${prev}`);
+    }
 
-  socket.on("unsubscribe",(data: { exchange: string }, ack?: (msg: any) => void) => {
-      if (!data?.exchange) {
-        if (ack) ack({ status: "error", message: "Exchange is required" });
-        return;
-      }
-      const exchange = data.exchange.toUpperCase();
+    socket.data.exchange = exchange;
+    ack?.({ status: "ok", exchange });
+  });
 
-      // Leave exchange room
-      socket.leave(`e:${exchange}`);
+  socket.on("unsubscribe", (data, ack) => {
+    const exchange = data?.exchange?.toUpperCase();
 
-      subscriptionManager.unsubscribeFromExchange(clientId, exchange);
+    if (!exchange || !EXCHANGES.includes(exchange)) {
+      ack?.({ status: "error", message: "Invalid exchange" });
+      return;
+    }
 
-      if (ack) ack({ status: "ok", exchange });
-    },
-  );
+    socket.leave(`e:${exchange}`);
+    subscriptionManager.unsubscribeFromExchange(socket.id, exchange);
+
+    if (socket.data.exchange === exchange) {
+      socket.data.exchange = undefined;
+    }
+
+    ack?.({ status: "ok", exchange });
+  });
 
   socket.on("disconnect", () => {
     subscriptionManager.disconnect(clientId);

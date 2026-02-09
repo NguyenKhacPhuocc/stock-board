@@ -39,11 +39,12 @@ function filterStocks(stocks: StockInstrument[], searchTerm: string): StockInstr
   return sortSuggestions(filtered, searchTerm);
 }
 
-function getStockType(stock: StockInstrument): string {
-  if (stock.StockType === '4' || stock.SB.startsWith('C')) return 'WARRANT';
-  if (stock.SB.startsWith('E') || stock.SB.startsWith('FU')) return 'ETF';
-  return 'STOCK';
-}
+// Disabled since WARRANT/ETF tabs are disabled
+// function getStockType(stock: StockInstrument): string {
+//   if (stock.StockType === '4' || stock.SB.startsWith('C')) return 'WARRANT';
+//   if (stock.SB.startsWith('E') || stock.SB.startsWith('FU')) return 'ETF';
+//   return 'STOCK';
+// }
 
 export default function MarketToolBar() {
   const intl = useIntl();
@@ -72,19 +73,17 @@ export default function MarketToolBar() {
     dispatch(setSelectedType('STOCK'));
   };
 
-  const handleTypeClick = (type: string) => {
-    dispatch(setSelectedType(type));
-  };
-
   const handleSelectStock = (stock: StockInstrument) => {
     const targetExchange = stock.exchange || selectedExchange;
-    const targetType = getStockType(stock);
+    // Since WARRANT/ETF tabs are disabled, always use STOCK type
+    // const targetType = getStockType(stock);
 
     if (targetExchange !== selectedExchange) {
       dispatch(setSelectedExchange(targetExchange as ExchangeType));
     }
 
-    dispatch(setSelectedType(targetType));
+    // Always set to STOCK since WARRANT/ETF are disabled
+    dispatch(setSelectedType('STOCK'));
     dispatch(setHighlightedSymbol(stock.SB));
 
     setSearchTerm(stock.SB);
@@ -145,7 +144,7 @@ export default function MarketToolBar() {
           })}
         </div>
 
-        <div className={clsx(styles.marketTabs, styles.secondaryTabs)}>
+        {/* <div className={clsx(styles.marketTabs, styles.secondaryTabs)}>
           <div
             className={clsx(styles.tab, selectedType === 'WARRANT' && styles.active)}
             onClick={() => handleTypeClick('WARRANT')}
@@ -158,7 +157,7 @@ export default function MarketToolBar() {
           >
             {intl.formatMessage({ id: 'market.etf' })}
           </div>
-        </div>
+        </div> */}
       </div>
 
       <div className={styles.toolBarRight}>

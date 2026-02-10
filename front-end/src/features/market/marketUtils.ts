@@ -65,7 +65,7 @@ export const getColorClass = (
   return styles.colorRef;
 };
 
-export const  computeColorType = (
+export const computeColorType = (
   price: number | undefined | null,
   ref: number | undefined,
   ceil: number | undefined,
@@ -101,3 +101,89 @@ export const formatCellValue = (raw: unknown, type: CellType): string => {
       return String(raw);
   }
 }
+
+export const computeRowData = (
+  stock: import("./marketTypes").StockInstrument | undefined
+): import("./marketTypes").ComputedRowData | null => {
+  if (!stock) return null;
+
+  const { RE = 0, CL = 0, FL = 0, CP } = stock;
+
+  // Helper to get color for a price
+  const getPriceColor = (price: number | undefined) =>
+    getColorClass(price, RE, CL, FL);
+
+  const getPriceColorType = (price: number | undefined) =>
+    computeColorType(price, RE, CL, FL);
+
+  // Symbol (uses CP color)
+  const cpColor = getPriceColor(CP);
+  const cpColorType = getPriceColorType(CP);
+
+  // Type-safe formatter wrappers to match (val: unknown) => string signature
+  const fmtPrice = (val: unknown) => formatPrice(val as PriceValue);
+  const fmtVol = (val: unknown) => formatVol(val as PriceValue);
+  const fmtChange = (val: unknown) => formatChange(val as PriceValue);
+  const fmtPercent = (val: unknown) => formatPercent(val as PriceValue);
+
+  // Helper to create cell data
+  const createCell = (
+    rawValue: unknown,
+    formatter: (val: unknown) => string,
+    colorClass: string,
+    colorType: CellColorType = "ref"
+  ): import("./marketTypes").ComputedCellData => ({
+    value: formatter(rawValue),
+    colorClass,
+    colorType,
+    rawValue,
+  });
+
+  return {
+    // Symbol
+    symbol: createCell(stock.SB, String, cpColor, cpColorType),
+
+    // Static prices (fixed colors)
+    re: createCell(RE, fmtPrice, styles.colorRef, "ref"),
+    cl: createCell(CL, fmtPrice, styles.colorCeiling, "ceiling"),
+    fl: createCell(FL, fmtPrice, styles.colorFloor, "floor"),
+
+    // Buy side
+    b3: createCell(stock.B3, fmtPrice, getPriceColor(stock.B3), getPriceColorType(stock.B3)),
+    v3: createCell(stock.V3, fmtVol, getPriceColor(stock.B3), getPriceColorType(stock.B3)),
+    b2: createCell(stock.B2, fmtPrice, getPriceColor(stock.B2), getPriceColorType(stock.B2)),
+    v2: createCell(stock.V2, fmtVol, getPriceColor(stock.B2), getPriceColorType(stock.B2)),
+    b1: createCell(stock.B1, fmtPrice, getPriceColor(stock.B1), getPriceColorType(stock.B1)),
+    v1: createCell(stock.V1, fmtVol, getPriceColor(stock.B1), getPriceColorType(stock.B1)),
+
+    // Match (use CP for color)
+    cp: createCell(CP, fmtPrice, cpColor, cpColorType),
+    cv: createCell(stock.CV, fmtVol, cpColor, cpColorType),
+    ch: createCell(
+      CP ? stock.CH : undefined, // Only show if CP exists
+      fmtChange,
+      cpColor,
+      cpColorType
+    ),
+    chp: createCell(
+      CP ? stock.CHP : undefined, // Only show if CP exists
+      fmtPercent,
+      cpColor,
+      cpColorType
+    ),
+
+    // Sell side
+    s1: createCell(stock.S1, fmtPrice, getPriceColor(stock.S1), getPriceColorType(stock.S1)),
+    u1: createCell(stock.U1, fmtVol, getPriceColor(stock.S1), getPriceColorType(stock.S1)),
+    s2: createCell(stock.S2, fmtPrice, getPriceColor(stock.S2), getPriceColorType(stock.S2)),
+    u2: createCell(stock.U2, fmtVol, getPriceColor(stock.S2), getPriceColorType(stock.S2)),
+    s3: createCell(stock.S3, fmtPrice, getPriceColor(stock.S3), getPriceColorType(stock.S3)),
+    u3: createCell(stock.U3, fmtVol, getPriceColor(stock.S3), getPriceColorType(stock.S3)),
+
+    // Summary
+    tt: createCell(stock.TT, fmtVol, styles.colorWhite, "ref"),
+    hi: createCell(stock.HI, fmtPrice, styles.colorUp, "up"),
+    ap: createCell(stock.AP, fmtPrice, getPriceColor(stock.AP), getPriceColorType(stock.AP)),
+    lo: createCell(stock.LO, fmtPrice, styles.colorDown, "down"),
+  };
+};

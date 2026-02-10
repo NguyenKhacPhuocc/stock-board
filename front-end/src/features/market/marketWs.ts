@@ -52,7 +52,6 @@ const isValidUpdate = (p: any): p is WSUpdatePayload => {
   return p && Array.isArray(p.d);
 };
 
-// Track subscription count per exchange across all tabs
 const subscriptionCount: Map<ExchangeType, number> = new Map();
 
 const handleUnsubscribe = (socket: Socket, exchange: ExchangeType): void => {
@@ -152,7 +151,6 @@ export const useMarketWebSocket = (exchange: ExchangeType): void => {
     getChannel().postMessage({ type: "subscribe:add", exchange: next });
 
     socket.emit("subscribe", { exchange: next });
-    logger.debug("subscribed", next);
     currentExchangeRef.current = next;
 
     return () => {

@@ -353,3 +353,54 @@ export interface MarketCellProps {
   fixedColorClass?: string;
   className?: string;
 }
+
+// ============================================================================
+// Computed Row Data Types (for optimized rendering)
+// ============================================================================
+
+/** Computed cell data with formatted value and color */
+export interface ComputedCellData {
+  value: string;
+  colorClass: string;
+  colorType: CellColorType;
+  rawValue: unknown;
+}
+
+/** All computed cell data for a single stock row */
+export interface ComputedRowData {
+  // Symbol
+  symbol: ComputedCellData;
+
+  // Static prices
+  re: ComputedCellData;
+  cl: ComputedCellData;
+  fl: ComputedCellData;
+
+  // Buy side
+  b3: ComputedCellData;
+  v3: ComputedCellData;
+  b2: ComputedCellData;
+  v2: ComputedCellData;
+  b1: ComputedCellData;
+  v1: ComputedCellData;
+
+  // Match
+  cp: ComputedCellData;
+  cv: ComputedCellData;
+  ch: ComputedCellData;
+  chp: ComputedCellData;
+
+  // Sell side
+  s1: ComputedCellData;
+  u1: ComputedCellData;
+  s2: ComputedCellData;
+  u2: ComputedCellData;
+  s3: ComputedCellData;
+  u3: ComputedCellData;
+
+  // Summary
+  tt: ComputedCellData;
+  hi: ComputedCellData;
+  ap: ComputedCellData;
+  lo: ComputedCellData;
+}

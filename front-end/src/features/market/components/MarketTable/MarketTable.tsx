@@ -8,14 +8,14 @@ import {
   selectPinnedFilteredStockSymbols,
   selectUnpinnedFilteredStockSymbols,
   selectHighlightedSymbol,
-  makeSelectCell
 } from "../../marketSelectors";
-import MarketCell from "./MarketCell";
 import styles from "./MarketTable.module.scss";
 import { FixedSizeList as List, type ListChildComponentProps } from "react-window";
 import type { StockRowProps, SymbolCellProps, VirtualRowData } from "../../marketTypes";
 import useMeasure from "react-use-measure";
 import { HIGHLIGHT_TIMEOUT } from "@/constants/exchanges";
+import MarketCell from "./MarketCell";
+import { computeRowData } from "../../marketUtils";
 
 const SymbolCell = memo(({ symbol, symbolColorClass, isPinned }: SymbolCellProps) => {
   const dispatch = useAppDispatch();
@@ -54,9 +54,10 @@ const StockRow = memo(({
   const rowRef = useRef<HTMLDivElement>(null);
   const dispatch = useAppDispatch();
 
-  // Get CP color for symbol cell
-  const selectCPColor = useMemo(() => makeSelectCell(symbol, 'CP', 'price'), [symbol]);
-  const cpData = useAppSelector(selectCPColor);
+  const stock = useAppSelector(state => state.market.entities[symbol]);
+
+  // Compute all cell data in one pass (memoized)
+  const rowData = useMemo(() => computeRowData(stock), [stock]);
 
   useEffect(() => {
     if (!isHighlighted || !rowRef.current) return;
@@ -66,6 +67,17 @@ const StockRow = memo(({
 
     return () => clearTimeout(timer);
   }, [isHighlighted, dispatch]);
+
+  // If no data, render empty row
+  if (!rowData) {
+    return (
+      <div
+        ref={rowRef}
+        style={style}
+        className={clsx(styles.row, isHighlighted && styles.rowHighlighted, isPinned && styles.rowPinned)}
+      />
+    );
+  }
 
   return (
     <div
@@ -79,49 +91,50 @@ const StockRow = memo(({
     >
       <SymbolCell
         symbol={symbol}
-        symbolColorClass={cpData.colorClass}
+        symbolColorClass={rowData.symbol.colorClass}
         isPinned={isPinned}
       />
 
-      {/* Static-price columns (RE, CL, FL - no useSelector needed) */}
-      <MarketCell symbol={symbol} field="RE" type="price" fixedColorClass={styles.colorRef} />
-      <MarketCell symbol={symbol} field="CL" type="price" fixedColorClass={styles.colorCeiling} />
-      <MarketCell symbol={symbol} field="FL" type="price" fixedColorClass={styles.colorFloor} />
+      {/* Static-price columns */}
+      <MarketCell {...rowData.re} />
+      <MarketCell {...rowData.cl} />
+      <MarketCell {...rowData.fl} />
 
       {/* Buy Side */}
-      <MarketCell symbol={symbol} field="B3" type="price" />
-      <MarketCell symbol={symbol} field="V3" type="vol" colorField="B3" />
-      <MarketCell symbol={symbol} field="B2" type="price" />
-      <MarketCell symbol={symbol} field="V2" type="vol" colorField="B2" />
-      <MarketCell symbol={symbol} field="B1" type="price" />
-      <MarketCell symbol={symbol} field="V1" type="vol" colorField="B1" />
+      <MarketCell {...rowData.b3} flashColorType={rowData.b3.colorType} />
+      <MarketCell {...rowData.v3} flashColorType={rowData.v3.colorType} />
+      <MarketCell {...rowData.b2} flashColorType={rowData.b2.colorType} />
+      <MarketCell {...rowData.v2} flashColorType={rowData.v2.colorType} />
+      <MarketCell {...rowData.b1} flashColorType={rowData.b1.colorType} />
+      <MarketCell {...rowData.v1} flashColorType={rowData.v1.colorType} />
 
       {/* Matching */}
-      <MarketCell symbol={symbol} field="CP" type="price" />
-      <MarketCell symbol={symbol} field="CV" type="vol" colorField="CP" />
-      <MarketCell symbol={symbol} field="CH" type="change" colorField="CP"/>
-      <MarketCell symbol={symbol} field="CHP" type="percent" colorField="CP"/>
+      <MarketCell {...rowData.cp} flashColorType={rowData.cp.colorType} />
+      <MarketCell {...rowData.cv} flashColorType={rowData.cv.colorType} />
+      <MarketCell {...rowData.ch} flashColorType={rowData.ch.colorType} />
+      <MarketCell {...rowData.chp} flashColorType={rowData.chp.colorType} />
 
       {/* Sell Side */}
-      <MarketCell symbol={symbol} field="S1" type="price" />
-      <MarketCell symbol={symbol} field="U1" type="vol" colorField="S1" />
-      <MarketCell symbol={symbol} field="S2" type="price" />
-      <MarketCell symbol={symbol} field="U2" type="vol" colorField="S2" />
-      <MarketCell symbol={symbol} field="S3" type="price" />
-      <MarketCell symbol={symbol} field="U3" type="vol" colorField="S3" />
+      <MarketCell {...rowData.s1} flashColorType={rowData.s1.colorType} />
+      <MarketCell {...rowData.u1} flashColorType={rowData.u1.colorType} />
+      <MarketCell {...rowData.s2} flashColorType={rowData.s2.colorType} />
+      <MarketCell {...rowData.u2} flashColorType={rowData.u2.colorType} />
+      <MarketCell {...rowData.s3} flashColorType={rowData.s3.colorType} />
+      <MarketCell {...rowData.u3} flashColorType={rowData.u3.colorType} />
 
       {/* Summary */}
-      <MarketCell symbol={symbol} field="TT" type="vol" fixedColorClass={styles.colorWhite} />
-      <MarketCell symbol={symbol} field="HI" type="price" fixedColorClass={styles.colorUp} />
-      <MarketCell symbol={symbol} field="AP" type="price" />
-      <MarketCell symbol={symbol} field="LO" type="price" fixedColorClass={styles.colorDown} />
+      <MarketCell {...rowData.tt} />
+      <MarketCell {...rowData.hi} />
+      <MarketCell {...rowData.ap} flashColorType={rowData.ap.colorType} />
+      <MarketCell {...rowData.lo} />
     </div>
   );
 }, (prevProps, nextProps) => {
   return (
     prevProps.symbol === nextProps.symbol &&
     prevProps.isHighlighted === nextProps.isHighlighted &&
-    prevProps.isPinned === nextProps.isPinned
+    prevProps.isPinned === nextProps.isPinned &&
+    prevProps.style === nextProps.style
   );
 });
 
@@ -129,34 +142,90 @@ const TableHeader = memo(() => {
   const intl = useIntl();
   return (
     <div className={styles.header}>
-      <div className={styles.headerCell} style={{ gridColumn: 1, gridRow: '1 / span 2' }}>{intl.formatMessage({ id: 'market.symbol' })}</div>
-      <div className={clsx(styles.headerCell, styles.colorRef)} style={{ gridColumn: 2, gridRow: '1 / span 2' }}>{intl.formatMessage({ id: 'market.ref' })}</div>
-      <div className={clsx(styles.headerCell, styles.colorCeiling)} style={{ gridColumn: 3, gridRow: '1 / span 2' }}>{intl.formatMessage({ id: 'market.ceil' })}</div>
-      <div className={clsx(styles.headerCell, styles.colorFloor)} style={{ gridColumn: 4, gridRow: '1 / span 2' }}>{intl.formatMessage({ id: 'market.floor' })}</div>
-      <div className={styles.headerGroup} style={{ gridColumn: '5 / span 6' }}>{intl.formatMessage({ id: 'market.buy' })}</div>
-      <div className={styles.headerGroup} style={{ gridColumn: '11 / span 4' }}>{intl.formatMessage({ id: 'market.matched' })}</div>
-      <div className={styles.headerGroup} style={{ gridColumn: '15 / span 6' }}>{intl.formatMessage({ id: 'market.sell' })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 21, gridRow: '1 / span 2' }}>{intl.formatMessage({ id: 'market.total_vol' })}</div>
-      <div className={styles.headerGroup} style={{ gridColumn: '22 / span 3' }}>{intl.formatMessage({ id: 'market.price' })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 5 }}>{intl.formatMessage({ id: 'market.price_n' }, { n: 3 })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 6 }}>{intl.formatMessage({ id: 'market.vol_n' }, { n: 3 })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 7 }}>{intl.formatMessage({ id: 'market.price_n' }, { n: 2 })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 8 }}>{intl.formatMessage({ id: 'market.vol_n' }, { n: 2 })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 9 }}>{intl.formatMessage({ id: 'market.price_n' }, { n: 1 })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 10 }}>{intl.formatMessage({ id: 'market.vol_n' }, { n: 1 })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 11 }}>{intl.formatMessage({ id: 'market.price' })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 12 }}>{intl.formatMessage({ id: 'market.total_vol' })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 13 }}>{intl.formatMessage({ id: 'market.change' })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 14 }}>{intl.formatMessage({ id: 'market.percent' })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 15 }}>{intl.formatMessage({ id: 'market.price_n' }, { n: 1 })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 16 }}>{intl.formatMessage({ id: 'market.vol_n' }, { n: 1 })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 17 }}>{intl.formatMessage({ id: 'market.price_n' }, { n: 2 })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 18 }}>{intl.formatMessage({ id: 'market.vol_n' }, { n: 2 })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 19 }}>{intl.formatMessage({ id: 'market.price_n' }, { n: 3 })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 20 }}>{intl.formatMessage({ id: 'market.vol_n' }, { n: 3 })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 22 }}>{intl.formatMessage({ id: 'market.high' })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 23 }}>{intl.formatMessage({ id: 'market.avg' })}</div>
-      <div className={styles.headerCell} style={{ gridColumn: 24 }}>{intl.formatMessage({ id: 'market.low' })}</div>
+      <div className={styles.headerCell} style={{ gridColumn: 1, gridRow: '1 / span 2' }}>
+        {intl.formatMessage({ id: 'market.symbol' })}
+      </div>
+      <div className={clsx(styles.headerCell, styles.colorRef)} style={{ gridColumn: 2, gridRow: '1 / span 2' }}>
+        {intl.formatMessage({ id: 'market.ref' })}
+      </div>
+      <div className={clsx(styles.headerCell, styles.colorCeiling)} style={{ gridColumn: 3, gridRow: '1 / span 2' }}>
+        {intl.formatMessage({ id: 'market.ceil' })}
+      </div>
+      <div className={clsx(styles.headerCell, styles.colorFloor)} style={{ gridColumn: 4, gridRow: '1 / span 2' }}>
+        {intl.formatMessage({ id: 'market.floor' })}
+      </div>
+      <div className={styles.headerGroup} style={{ gridColumn: '5 / span 6' }}>
+        {intl.formatMessage({ id: 'market.buy' })}
+      </div>
+      <div className={styles.headerGroup} style={{ gridColumn: '11 / span 4' }}>
+        {intl.formatMessage({ id: 'market.matched' })}
+      </div>
+      <div className={styles.headerGroup} style={{ gridColumn: '15 / span 6' }}>
+        {intl.formatMessage({ id: 'market.sell' })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 21, gridRow: '1 / span 2' }}>
+        {intl.formatMessage({ id: 'market.total_vol' })}
+      </div>
+      <div className={styles.headerGroup} style={{ gridColumn: '22 / span 3' }}>
+        {intl.formatMessage({ id: 'market.price' })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 5 }}>
+        {intl.formatMessage({ id: 'market.price_n' }, { n: 3 })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 6 }}>
+        {intl.formatMessage({ id: 'market.vol_n' }, { n: 3 })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 7 }}>
+        {intl.formatMessage({ id: 'market.price_n' }, { n: 2 })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 8 }}>
+        {intl.formatMessage({ id: 'market.vol_n' }, { n: 2 })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 9 }}>
+        {intl.formatMessage({ id: 'market.price_n' }, { n: 1 })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 10 }}>
+        {intl.formatMessage({ id: 'market.vol_n' }, { n: 1 })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 11 }}>
+        {intl.formatMessage({ id: 'market.price' })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 12 }}>
+        {intl.formatMessage({ id: 'market.total_vol' })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 13 }}>
+        {intl.formatMessage({ id: 'market.change' })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 14 }}>
+        {intl.formatMessage({ id: 'market.percent' })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 15 }}>
+        {intl.formatMessage({ id: 'market.price_n' }, { n: 1 })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 16 }}>
+        {intl.formatMessage({ id: 'market.vol_n' }, { n: 1 })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 17 }}>
+        {intl.formatMessage({ id: 'market.price_n' }, { n: 2 })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 18 }}>
+        {intl.formatMessage({ id: 'market.vol_n' }, { n: 2 })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 19 }}>
+        {intl.formatMessage({ id: 'market.price_n' }, { n: 3 })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 20 }}>
+        {intl.formatMessage({ id: 'market.vol_n' }, { n: 3 })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 22 }}>
+        {intl.formatMessage({ id: 'market.high' })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 23 }}>
+        {intl.formatMessage({ id: 'market.avg' })}
+      </div>
+      <div className={styles.headerCell} style={{ gridColumn: 24 }}>
+        {intl.formatMessage({ id: 'market.low' })}
+      </div>
     </div>
   );
 });

@@ -1,73 +1,64 @@
-# React + TypeScript + Vite
+# Stock Board Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the frontend application for Stock Board - a real-time stock market monitoring application built with React, TypeScript, and Vite.
 
-Currently, two official plugins are available:
+## Quick Start
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+# Install dependencies
+npm install
 
-## React Compiler
+# Start development server
+npm run dev
 
-The React Compiler is currently not compatible with SWC. See [this issue](https://github.com/vitejs/vite-plugin-react/issues/428) for tracking the progress.
+# Build for production
+npm run build
 
-## Expanding the ESLint configuration
+# Preview production build
+npm run preview
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Run linter
+npm run lint
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Technology Stack
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- **React 19.2.0** - UI library
+- **TypeScript** - Type safety
+- **Vite 7.2.4** - Build tool with HMR
+- **Redux Toolkit** - State management
+- **React Router DOM** - Routing
+- **React Intl** - Internationalization (English/Vietnamese)
+- **Axios** - HTTP client
+- **WebSocket** - Real-time market data
+- **SASS** - Styling
+- **Day.js** - Date/time utilities
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Project Structure
+
 ```
+src/
+├── app/           # Redux store, hooks, i18n configuration
+├── components/    # Reusable UI components
+├── features/      # Feature modules (auth, market)
+├── pages/         # Page components
+├── routes/        # Routing configuration
+├── services/      # API and WebSocket services
+├── locales/       # Translation files (en.json, vi.json)
+└── styles/        # Global styles
+```
+
+## Features
+
+- 🔐 User authentication
+- 📊 Real-time stock market data via WebSocket
+- 🌐 Bilingual support (English/Vietnamese)
+- 📱 Responsive design
+- ⚡ Fast refresh with Vite + SWC
+
+## Development Notes
+
+This project uses [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) for Fast Refresh. The React Compiler is currently not compatible with SWC (see [this issue](https://github.com/vitejs/vite-plugin-react/issues/428)).
+
+For more information, see the [main project README](../README.md).
+

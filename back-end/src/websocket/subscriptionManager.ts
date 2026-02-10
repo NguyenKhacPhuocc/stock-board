@@ -118,7 +118,6 @@ class SubscriptionManager {
       bscFeed.subscribeToExchanges(activeExchanges);
       this.currentBSCExchanges = new Set(activeExchanges);
     } else {
-      this.logger.debug('No active exchanges - unsubscribing all');
       if (this.currentBSCExchanges.size > 0) {
         bscFeed.unsubscribeFromExchanges(Array.from(this.currentBSCExchanges));
         this.currentBSCExchanges.clear();

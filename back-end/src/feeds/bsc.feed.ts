@@ -214,28 +214,6 @@ export class BSCFeed {
     // Remove from current exchanges
     exchanges.forEach((ex) => this.currentExchanges.delete(ex));
   }
-
-  public disconnect() {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-    if (this.bscSocket) {
-      this.bscSocket.disconnect();
-    }
-    this.isConnecting = false;
-    this.reconnectAttempts = 0;
-  }
-
-  public getConnectionStatus(): {
-    connected: boolean;
-    reconnectAttempts: number;
-  } {
-    return {
-      connected: this.bscSocket?.connected || false,
-      reconnectAttempts: this.reconnectAttempts,
-    };
-  }
 }
 
 export const bscFeed = new BSCFeed();

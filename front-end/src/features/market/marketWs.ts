@@ -55,11 +55,24 @@ const isValidUpdate = (p: any): p is WSUpdatePayload => {
 // Track subscription count per exchange across all tabs
 const subscriptionCount: Map<ExchangeType, number> = new Map();
 
+const handleUnsubscribe = (socket: Socket, exchange: ExchangeType): void => {
+  const count = subscriptionCount.get(exchange) ?? 1;
+  const newCount = Math.max(0, count - 1);
+
+  if (newCount > 0) {
+    subscriptionCount.set(exchange, newCount);
+  } else {
+    subscriptionCount.delete(exchange);
+    getChannel().postMessage({ type: "subscribe:remove", exchange });
+    socket.emit("unsubscribe", { exchange });
+  }
+  getChannel().postMessage({ type: "subscribe:remove", exchange });
+};
+
 export const useMarketWebSocket = (exchange: ExchangeType): void => {
   const dispatch = useAppDispatch();
   const currentExchangeRef = useRef<ExchangeType | null>(null);
 
-  /* -------- init socket + listen events (all tabs independently) -------- */
   useEffect(() => {
     const socket = getSocket();
 
@@ -92,7 +105,7 @@ export const useMarketWebSocket = (exchange: ExchangeType): void => {
     };
   }, [dispatch]);
 
-  /* -------- handle subscription count via BroadcastChannel -------- */
+
   useEffect(() => {
     const ch = getChannel();
 
@@ -118,7 +131,7 @@ export const useMarketWebSocket = (exchange: ExchangeType): void => {
     return () => ch.removeEventListener("message", handleMessage);
   }, []);
 
-  /* -------- subscribe / unsubscribe exchange (refcount per tab) -------- */
+
   useEffect(() => {
     const socket = getSocket();
     if (!exchange) return;
@@ -129,25 +142,7 @@ export const useMarketWebSocket = (exchange: ExchangeType): void => {
     if (prev === next) return;
 
     if (prev) {
-      // Update count immediately for this tab
-      const count = subscriptionCount.get(prev) ?? 1;
-      const newCount = Math.max(0, count - 1);
-      if (newCount > 0) {
-        subscriptionCount.set(prev, newCount);
-      } else {
-        subscriptionCount.delete(prev);
-      }
-
-      // Notify other tabs that we're unsubscribing
-      getChannel().postMessage({ type: "subscribe:remove", exchange: prev });
-
-      // Only emit unsubscribe if no other tabs are subscribed
-      if (newCount === 0) {
-        socket.emit("unsubscribe", { exchange: prev });
-        logger.debug("unsubscribed", prev);
-      } else {
-        logger.debug("skipped unsubscribe (other tabs still subscribed)", { exchange: prev, count: newCount });
-      }
+      handleUnsubscribe(socket, prev);
     }
 
     // Update count immediately for this tab
@@ -162,26 +157,7 @@ export const useMarketWebSocket = (exchange: ExchangeType): void => {
 
     return () => {
       if (currentExchangeRef.current === next) {
-        // Update count immediately for this tab
-        const count = subscriptionCount.get(next) ?? 1;
-        const newCount = Math.max(0, count - 1);
-        if (newCount > 0) {
-          subscriptionCount.set(next, newCount);
-        } else {
-          subscriptionCount.delete(next);
-        }
-
-        // Notify other tabs that we're unsubscribing
-        getChannel().postMessage({ type: "subscribe:remove", exchange: next });
-
-        // Only emit unsubscribe if no other tabs are subscribed
-        if (newCount === 0) {
-          socket.emit("unsubscribe", { exchange: next });
-          logger.debug("unsubscribed", next);
-        } else {
-          logger.debug("skipped unsubscribe on unmount (other tabs still subscribed)", { exchange: next, count: newCount });
-        }
-
+        handleUnsubscribe(socket, next);
         currentExchangeRef.current = null;
       }
     };

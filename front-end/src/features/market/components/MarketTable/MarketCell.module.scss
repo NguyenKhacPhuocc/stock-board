@@ -86,21 +86,21 @@
 }
 
 .flashUp {
-  animation: flashUp 1s linear;
+  animation: flashUp 1s linear forwards;
 }
 
 .flashDown {
-  animation: flashDown 1s linear;
+  animation: flashDown 1s linear forwards;
 }
 
 .flashRef {
-  animation: flashRef 1s linear;
+  animation: flashRef 1s linear forwards;
 }
 
 .flashCeiling {
-  animation: flashCeiling 1s linear;
+  animation: flashCeiling 1s linear forwards;
 }
 
 .flashFloor {
-  animation: flashFloor 1s linear;
+  animation: flashFloor 1s linear forwards;
 }

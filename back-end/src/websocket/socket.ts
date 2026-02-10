@@ -55,7 +55,7 @@ const handleSocketConnection = (socket: AuthenticatedSocket) => {
   const clientId = socket.id;
 
   socket.on("subscribe", (data, ack) => {
-    const exchange = data?.exchange?.toUpperCase();
+    const exchange = data.exchange.toUpperCase();
 
     if (!exchange || !EXCHANGES.includes(exchange)) {
       ack?.({ status: "error", message: "Invalid exchange" });

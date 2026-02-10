@@ -7,6 +7,7 @@ export function useFlashAnimation(compareValue: unknown, triggerDeps: unknown[] 
   const [isFlashing, setIsFlashing] = useState<boolean>(false);
   const prevValueRef = useRef<unknown>(undefined);
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashTimestampRef = useRef<number>(0);
   const isFirstEffectRef = useRef(true);
 
   useEffect(() => {
@@ -26,17 +27,24 @@ export function useFlashAnimation(compareValue: unknown, triggerDeps: unknown[] 
       clearTimeout(flashTimeoutRef.current);
     }
 
-    // Reset highlight state to ensure re-render on every update
+    // Mark flash timestamp
+    const flashId = Date.now();
+    flashTimestampRef.current = flashId;
+
+    // Reset and start flash
     setIsFlashing(false);
 
-    // Start flash animation in next frame
     requestAnimationFrame(() => {
-      setIsFlashing(true);
+      if (flashTimestampRef.current === flashId) {
+        setIsFlashing(true);
+      }
     });
 
-    // Turn off highlight after 2000ms (HIGHLIGHT_TIMEOUT)
+    // Turn off highlight after HIGHLIGHT_TIMEOUT
     flashTimeoutRef.current = setTimeout(() => {
-      setIsFlashing(false);
+      if (flashTimestampRef.current === flashId) {
+        setIsFlashing(false);
+      }
     }, HIGHLIGHT_TIMEOUT);
 
     return () => {
